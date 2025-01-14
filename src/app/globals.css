@@ -1,0 +1,172 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Base colors inspired by Formless.ai */
+    --background: 230 25% 98%;
+    --foreground: 230 25% 10%;
+    
+    --primary: 230 60% 50%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 230 25% 95%;
+    --secondary-foreground: 230 25% 10%;
+    
+    --accent: 260 100% 60%;
+    --accent-foreground: 0 0% 100%;
+    
+    --muted: 230 25% 95%;
+    --muted-foreground: 230 25% 40%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 230 25% 10%;
+    
+    --destructive: 0 100% 50%;
+    --destructive-foreground: 210 40% 98%;
+
+    --ring: 230 60% 50%;
+    
+    --radius: 0.5rem;
+  }
+ 
+  .dark {
+    /* Dark mode inspired by Formless.ai */
+    --background: 230 25% 5%;
+    --foreground: 230 25% 98%;
+    
+    --primary: 230 60% 60%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 230 25% 10%;
+    --secondary-foreground: 230 25% 98%;
+    
+    --accent: 260 100% 70%;
+    --accent-foreground: 0 0% 100%;
+    
+    --muted: 230 25% 15%;
+    --muted-foreground: 230 25% 60%;
+    
+    --card: 230 25% 8%;
+    --card-foreground: 230 25% 98%;
+    
+    --destructive: 0 100% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --ring: 230 60% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .glow-effect {
+    @apply relative after:absolute after:inset-0 after:z-[-1] after:opacity-0 after:transition-opacity 
+           after:bg-gradient-to-r after:from-primary/20 after:via-accent/20 after:to-primary/20 
+           hover:after:opacity-100;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-primary;
+  }
+
+  .grid-pattern {
+    background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                      linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+}
+
+/* Modern Scrollbar */
+::-webkit-scrollbar {
+  @apply w-1.5;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-secondary;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/50 rounded-full hover:bg-muted-foreground/70 transition-colors;
+}
+
+/* Glass Effect */
+.glass {
+  @apply bg-background/50 backdrop-blur-xl border border-white/10;
+}
+
+/* Button Styles */
+.btn {
+  @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+         disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2;
+}
+
+.btn-primary {
+  @apply btn bg-primary text-primary-foreground hover:bg-primary/90;
+}
+
+.btn-secondary {
+  @apply btn bg-secondary text-secondary-foreground hover:bg-secondary/80;
+}
+
+.btn-ghost {
+  @apply btn hover:bg-accent hover:text-accent-foreground;
+}
+
+/* Card Styles */
+.card {
+  @apply rounded-lg border bg-card text-card-foreground shadow-sm;
+}
+
+.card-hover {
+  @apply transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5;
+}
+
+/* Input Styles */
+.input {
+  @apply flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm 
+         ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium
+         placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 
+         focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+/* Animation Classes */
+.animate-in {
+  animation: animate-in 0.5s ease-out;
+}
+
+.animate-out {
+  animation: animate-out 0.5s ease-in;
+}
+
+@keyframes animate-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes animate-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
