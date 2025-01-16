@@ -1,81 +1,138 @@
 "use client";
 
-import { cn } from "@/utils/cn";
-import { motion, useMotionTemplate, useMotionValue, useSpring } from "framer-motion";
-import { MouseEvent, PropsWithChildren, ReactNode, useRef } from "react";
+import { useState, useRef } from 'react';
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { cn } from '@/lib/utils';
+
+interface CardContainerProps {
+  children: React.ReactNode;
+  className?: string;
+  containerClassName?: string;
+  glowColor?: string;
+}
+
+interface CardBodyProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+interface CardItemProps {
+  children: React.ReactNode;
+  className?: string;
+}
 
 export const CardContainer = ({
   children,
   className,
   containerClassName,
-}: PropsWithChildren<{
-  className?: string;
-  containerClassName?: string;
-}>) => {
+  glowColor = 'hsl(var(--primary))',
+}: CardContainerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
 
-  const mouseX = useSpring(0, { stiffness: 500, damping: 100 });
-  const mouseY = useSpring(0, { stiffness: 500, damping: 100 });
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
 
-  function onMouseMove({ currentTarget, clientX, clientY }: MouseEvent) {
-    const { left, top } = currentTarget.getBoundingClientRect();
-    mouseX.set(clientX - left);
-    mouseY.set(clientY - top);
-  }
-  
-  const maskImage = useMotionTemplate`radial-gradient(240px at ${mouseX}px ${mouseY}px, white, transparent)`;
-  const style = { maskImage, WebkitMaskImage: maskImage };
+  const mouseXSpring = useSpring(x);
+  const mouseYSpring = useSpring(y);
 
-  return (
-    <div
-      ref={containerRef}
-      onMouseMove={onMouseMove}
-      className={cn("relative w-full h-full", containerClassName)}
-    >
-      <div className={cn("group/card relative w-auto h-auto", className)}>
-        {children}
-      </div>
-    </div>
-  );
-};
+  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ['17.5deg', '-17.5deg']);
+  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ['-17.5deg', '17.5deg']);
 
-export const CardBody = ({
-  children,
-  className,
-}: PropsWithChildren<{
-  className?: string;
-}>) => {
-  return (
-    <div className={cn("h-full w-full", className)}>
-      <div className="absolute inset-0 h-full w-full bg-gradient-to-r from-purple-500 via-purple-700 to-purple-900 opacity-0 group-hover/card:opacity-100 blur-sm transition duration-500" />
-      <div className="relative h-full w-full backdrop-blur-sm">
-        {children}
-      </div>
-    </div>
-  );
-};
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!containerRef.current) return;
 
-export const CardItem = ({
-  as: Tag = "div",
-  children,
-  className,
-  translateX = 0,
-  translateY = 0,
-  translateZ = 0,
-}: PropsWithChildren<{
-  as?: any;
-  className?: string;
-  translateX?: number | string;
-  translateY?: number | string;
-  translateZ?: number | string;
-}>) => {
-  const style = {
-    transform: `perspective(1000px) translateX(${translateX}px) translateY(${translateY}px) translateZ(${translateZ}px)`,
+    const rect = containerRef.current.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const xPct = mouseX / width - 0.5;
+    const yPct = mouseY / height - 0.5;
+
+    x.set(xPct);
+    y.set(yPct);
+  };
+
+  const handleMouseLeave = () => {
+    x.set(0);
+    y.set(0);
+    setIsFocused(false);
   };
 
   return (
-    <Tag className={cn("transition duration-200 ease-linear", className)} style={style}>
+    <motion.div
+      ref={containerRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      onMouseEnter={() => setIsFocused(true)}
+      style={{
+        rotateX,
+        rotateY,
+        transformStyle: 'preserve-3d',
+      }}
+      className={cn(
+        'relative w-full h-full transition-all duration-200 ease-linear',
+        containerClassName
+      )}
+    >
+      <div
+        style={{
+          backgroundImage: `
+            radial-gradient(
+              ${glowColor} 0%,
+              transparent 70%
+            )
+          `,
+        }}
+        className={cn(
+          'absolute inset-0 opacity-0 transition-opacity duration-500',
+          isFocused ? 'opacity-30' : 'opacity-0'
+        )}
+      />
+      <div
+        className={cn(
+          'bg-background rounded-xl border shadow-sm p-6 h-full w-full',
+          'transform-style-preserve-3d relative',
+          className
+        )}
+        style={{
+          transform: 'translateZ(75px)',
+          transformStyle: 'preserve-3d',
+        }}
+      >
+        {children}
+      </div>
+    </motion.div>
+  );
+};
+
+export const CardBody = ({ children, className }: CardBodyProps) => {
+  return (
+    <div
+      className={cn(
+        'relative h-full w-full transform-style-preserve-3d',
+        className
+      )}
+    >
       {children}
-    </Tag>
+    </div>
+  );
+};
+
+export const CardItem = ({ children, className }: CardItemProps) => {
+  return (
+    <div
+      className={cn(
+        'relative w-full transform-style-preserve-3d',
+        className
+      )}
+      style={{
+        transform: 'translateZ(50px)',
+      }}
+    >
+      {children}
+    </div>
   );
 };

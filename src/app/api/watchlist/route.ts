@@ -1,105 +1,179 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
-import clientPromise from '@/lib/mongodb';
+import { prisma } from '@/lib/prisma';
 
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const { userId } = getAuth(req);
+    const { userId } = await getAuth(request);
     if (!userId) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const client = await clientPromise;
-    const db = client.db("fintrack");
-    const watchlist = await db.collection("watchlists").findOne({ userId });
-
-    return NextResponse.json(watchlist?.items || []);
-  } catch (error) {
-    console.error('Watchlist fetch error:', error);
-    return NextResponse.json({ message: "Error fetching watchlist" }, { status: 500 });
-  }
-}
-
-export async function POST(req: NextRequest) {
-  try {
-    const { userId } = getAuth(req);
-    if (!userId) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    const { symbol } = await req.json();
-    if (!symbol) {
-      return NextResponse.json({ message: "Symbol is required" }, { status: 400 });
-    }
-
-    const client = await clientPromise;
-    const db = client.db("fintrack");
-    
-    // Mock price data - replace with real API call
-    const mockPrice = Math.random() * 1000;
-    const mockChange = (Math.random() - 0.5) * 4;
-
-    const result = await db.collection("watchlists").updateOne(
-      { userId },
-      {
-        $addToSet: {
-          items: {
-            symbol,
-            price: mockPrice,
-            change: mockChange,
-            alerts: []
+    const watchlist = await prisma.watchlist.findFirst({
+      where: { userId },
+      include: {
+        stocks: {
+          orderBy: {
+            addedAt: 'desc'
           }
-        },
-        $setOnInsert: { userId }
-      },
-      { upsert: true }
-    );
+        }
+      }
+    });
+
+    if (!watchlist) {
+      return NextResponse.json(
+        { error: 'Watchlist not found' },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({
-      symbol,
-      price: mockPrice,
-      change: mockChange,
-      alerts: []
+      watchlist,
+      metadata: {
+        count: watchlist.stocks.length,
+        lastUpdated: new Date().toISOString()
+      }
     });
   } catch (error) {
-    console.error('Watchlist update error:', error);
-    return NextResponse.json({ message: "Error updating watchlist" }, { status: 500 });
+    console.error('Watchlist route error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch watchlist' },
+      { status: 500 }
+    );
   }
 }
 
-export async function DELETE(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const { userId } = getAuth(req);
+    const { userId } = await getAuth(request);
     if (!userId) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { symbol } = await req.json();
+    const { symbol, notes } = await request.json();
+
     if (!symbol) {
-      return NextResponse.json({ message: "Symbol is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Symbol is required' },
+        { status: 400 }
+      );
     }
 
-    const client = await clientPromise;
-    const db = client.db("fintrack");
-    
-    // First get the current watchlist
-    const watchlist = await db.collection("watchlists").findOne({ userId });
-    if (!watchlist) {
-      return NextResponse.json({ message: "Watchlist not found" }, { status: 404 });
-    }
+    const watchlist = await prisma.watchlist.upsert({
+      where: { userId },
+      create: {
+        userId,
+        stocks: {
+          create: {
+            symbol,
+            notes,
+            addedAt: new Date()
+          }
+        }
+      },
+      update: {
+        stocks: {
+          create: {
+            symbol,
+            notes,
+            addedAt: new Date()
+          }
+        }
+      },
+      include: {
+        stocks: true
+      }
+    });
 
-    // Filter out the item to remove
-    const updatedItems = watchlist.items.filter((item: { symbol: string }) => item.symbol !== symbol);
-
-    // Update with the filtered array
-    const result = await db.collection("watchlists").updateOne(
-      { userId },
-      { $set: { items: updatedItems } }
-    );
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      watchlist,
+      message: 'Stock added to watchlist successfully'
+    });
   } catch (error) {
-    console.error('Watchlist delete error:', error);
-    return NextResponse.json({ message: "Error updating watchlist" }, { status: 500 });
+    console.error('Add to watchlist error:', error);
+    return NextResponse.json(
+      { error: 'Failed to add stock to watchlist' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const { userId } = await getAuth(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { stockId, notes } = await request.json();
+
+    if (!stockId) {
+      return NextResponse.json(
+        { error: 'Stock ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const stock = await prisma.watchlistStock.update({
+      where: {
+        id: stockId,
+        watchlist: {
+          userId
+        }
+      },
+      data: {
+        notes,
+        updatedAt: new Date()
+      }
+    });
+
+    return NextResponse.json({
+      stock,
+      message: 'Watchlist stock updated successfully'
+    });
+  } catch (error) {
+    console.error('Update watchlist stock error:', error);
+    return NextResponse.json(
+      { error: 'Failed to update watchlist stock' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { userId } = await getAuth(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const stockId = searchParams.get('stockId');
+
+    if (!stockId) {
+      return NextResponse.json(
+        { error: 'Stock ID is required' },
+        { status: 400 }
+      );
+    }
+
+    await prisma.watchlistStock.delete({
+      where: {
+        id: stockId,
+        watchlist: {
+          userId
+        }
+      }
+    });
+
+    return NextResponse.json({
+      message: 'Stock removed from watchlist successfully'
+    });
+  } catch (error) {
+    console.error('Remove from watchlist error:', error);
+    return NextResponse.json(
+      { error: 'Failed to remove stock from watchlist' },
+      { status: 500 }
+    );
   }
 }

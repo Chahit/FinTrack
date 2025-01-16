@@ -1,16 +1,26 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { Button } from './ui/button';
 import { useRouter } from 'next/navigation';
 
+interface Particle {
+  element: HTMLDivElement;
+  animation: gsap.core.Tween;
+}
+
 export function Hero() {
   const router = useRouter();
+  const particleContainerRef = useRef<HTMLDivElement>(null);
+  const particlesRef = useRef<Particle[]>([]);
+  const timelineRef = useRef<gsap.core.Timeline | null>(null);
 
   useEffect(() => {
-    // GSAP animations
-    gsap.from('.hero-content', {
+    // Create GSAP timeline for content animations
+    timelineRef.current = gsap.timeline();
+    
+    timelineRef.current.from('.hero-content', {
       duration: 1,
       y: 50,
       opacity: 0,
@@ -18,25 +28,60 @@ export function Hero() {
       stagger: 0.2,
     });
 
-    // Particle effect animation
-    const particleContainer = document.querySelector('.particle-container');
-    if (particleContainer) {
-      for (let i = 0; i < 50; i++) {
-        const particle = document.createElement('div');
-        particle.className = 'particle';
-        particleContainer.appendChild(particle);
-        
-        gsap.to(particle, {
-          duration: 'random(2, 4)',
-          y: 'random(-100, 100)',
-          x: 'random(-100, 100)',
-          opacity: 0,
-          repeat: -1,
-          delay: 'random(0, 2)',
-          ease: 'power1.inOut',
-        });
+    return () => {
+      // Cleanup timeline
+      if (timelineRef.current) {
+        timelineRef.current.kill();
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    // Particle effect animation
+    const particleContainer = particleContainerRef.current;
+    if (!particleContainer) return;
+
+    // Clear any existing particles
+    particlesRef.current.forEach(particle => {
+      particle.animation.kill();
+      particle.element.remove();
+    });
+    particlesRef.current = [];
+
+    // Create new particles
+    for (let i = 0; i < 50; i++) {
+      const particle = document.createElement('div');
+      particle.className = 'particle absolute w-2 h-2 rounded-full bg-white/20';
+      particleContainer.appendChild(particle);
+
+      // Random initial position
+      const startX = Math.random() * window.innerWidth;
+      const startY = Math.random() * window.innerHeight;
+      gsap.set(particle, { x: startX, y: startY });
+
+      // Create animation
+      const animation = gsap.to(particle, {
+        duration: gsap.utils.random(2, 4),
+        y: `random(-100, 100)`,
+        x: `random(-100, 100)`,
+        opacity: 0,
+        repeat: -1,
+        delay: gsap.utils.random(0, 2),
+        ease: 'power1.inOut',
+        yoyo: true,
+      });
+
+      particlesRef.current.push({ element: particle, animation });
     }
+
+    return () => {
+      // Cleanup particles
+      particlesRef.current.forEach(particle => {
+        particle.animation.kill();
+        particle.element.remove();
+      });
+      particlesRef.current = [];
+    };
   }, []);
 
   return (
@@ -45,7 +90,11 @@ export function Hero() {
       <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-black to-purple-900" />
       
       {/* Particle Container */}
-      <div className="particle-container absolute inset-0" />
+      <div 
+        ref={particleContainerRef}
+        className="particle-container absolute inset-0 pointer-events-none"
+        aria-hidden="true"
+      />
       
       {/* Content */}
       <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">

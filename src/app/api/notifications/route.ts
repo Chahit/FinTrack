@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
-import clientPromise from '@/lib/mongodb';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,13 +9,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const client = await clientPromise;
-    const db = client.db("fintrack");
-    const notifications = await db.collection("notifications")
-      .find({ userId })
-      .sort({ timestamp: -1 })
-      .limit(50)
-      .toArray();
+    const notifications = await prisma.notification.findMany({
+      where: { 
+        userId,
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      take: 50
+    });
 
     return NextResponse.json(notifications);
   } catch (error) {
@@ -31,20 +33,28 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const { id, read } = await req.json();
-    if (!id) {
+    const { notificationId } = await req.json();
+    if (!notificationId) {
       return NextResponse.json({ message: "Notification ID is required" }, { status: 400 });
     }
 
-    const client = await clientPromise;
-    const db = client.db("fintrack");
-    
-    const result = await db.collection("notifications").updateOne(
-      { _id: id, userId },
-      { $set: { read } }
-    );
+    const notification = await prisma.notification.findFirst({
+      where: {
+        id: notificationId,
+        userId
+      }
+    });
 
-    return NextResponse.json({ success: true });
+    if (!notification) {
+      return NextResponse.json({ message: "Notification not found" }, { status: 404 });
+    }
+
+    const updatedNotification = await prisma.notification.update({
+      where: { id: notificationId },
+      data: { read: true }
+    });
+
+    return NextResponse.json(updatedNotification);
   } catch (error) {
     console.error('Notification update error:', error);
     return NextResponse.json({ message: "Error updating notification" }, { status: 500 });
@@ -58,14 +68,31 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const client = await clientPromise;
-    const db = client.db("fintrack");
-    
-    const result = await db.collection("notifications").deleteMany({ userId });
+    const { searchParams } = new URL(req.url);
+    const alertId = searchParams.get('alertId');
 
-    return NextResponse.json({ success: true });
+    if (!alertId) {
+      return NextResponse.json({ message: "Alert ID is required" }, { status: 400 });
+    }
+
+    const alert = await prisma.alert.findFirst({
+      where: {
+        id: alertId,
+        userId
+      }
+    });
+
+    if (!alert) {
+      return NextResponse.json({ message: "Alert not found" }, { status: 404 });
+    }
+
+    await prisma.alert.delete({
+      where: { id: alertId }
+    });
+
+    return NextResponse.json({ message: "Alert deleted successfully" });
   } catch (error) {
-    console.error('Notifications delete error:', error);
-    return NextResponse.json({ message: "Error clearing notifications" }, { status: 500 });
+    console.error('Alert deletion error:', error);
+    return NextResponse.json({ message: "Error deleting alert" }, { status: 500 });
   }
 }

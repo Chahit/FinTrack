@@ -1,154 +1,201 @@
 'use client';
 
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Select, SelectItem } from "@nextui-org/react";
-import { useState, useEffect } from "react";
-import { gsap } from "gsap";
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { format } from 'date-fns';
+import { Loader2 } from 'lucide-react';
+
+const assetSchema = z.object({
+  symbol: z.string().min(1, 'Symbol is required'),
+  type: z.enum(['crypto', 'stock'], {
+    required_error: 'Asset type is required',
+  }),
+  quantity: z.number({
+    required_error: 'Quantity is required',
+    invalid_type_error: 'Quantity must be a number',
+  }).positive('Quantity must be positive'),
+  purchasePrice: z.number({
+    required_error: 'Purchase price is required',
+    invalid_type_error: 'Purchase price must be a number',
+  }).positive('Purchase price must be positive'),
+  purchaseDate: z.string()
+    .refine((date) => !isNaN(Date.parse(date)), {
+      message: 'Invalid date format',
+    }),
+  notes: z.string().optional(),
+});
+
+type AssetFormData = z.infer<typeof assetSchema>;
 
 interface AssetFormProps {
-	isOpen: boolean;
-	onClose: () => void;
-	onSubmit: (data: AssetFormData) => void;
-	initialData?: AssetFormData;
-	mode: 'add' | 'edit';
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: AssetFormData) => Promise<void>;
+  mode: 'add' | 'edit';
+  initialData?: Partial<AssetFormData>;
 }
 
-export interface AssetFormData {
-	symbol: string;
-	type: string;
-	units: number;
-	purchasePrice: number;
-}
+export function AssetForm({ isOpen, onClose, onSubmit, mode, initialData }: AssetFormProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  console.log('AssetForm rendered:', { isOpen, mode, initialData });
 
-const assetTypes = [
-	{ label: 'Stock', value: 'stock' },
-	{ label: 'Cryptocurrency', value: 'crypto' },
-	{ label: 'Commodity', value: 'commodity' },
-];
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    watch,
+    setValue,
+  } = useForm<AssetFormData>({
+    resolver: zodResolver(assetSchema),
+    defaultValues: {
+      type: 'crypto',
+      purchaseDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+      ...initialData,
+    },
+  });
 
-export default function AssetForm({ isOpen, onClose, onSubmit, initialData, mode }: AssetFormProps) {
-	const [formData, setFormData] = useState<AssetFormData>(initialData || {
-		symbol: '',
-		type: '',
-		units: 0,
-		purchasePrice: 0
-	});
+  const onSubmitForm = async (data: AssetFormData) => {
+    try {
+      console.log('Form submitted with data:', data);
+      setIsSubmitting(true);
+      // Ensure the date is in ISO format
+      const formattedData = {
+        ...data,
+        purchaseDate: new Date(data.purchaseDate).toISOString(),
+      };
+      await onSubmit(formattedData);
+      reset();
+      onClose();
+    } catch (error) {
+      console.error('Form submission error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-	useEffect(() => {
-		if (isOpen) {
-			// Animate form elements when modal opens
-			gsap.from(".form-element", {
-				opacity: 0,
-				y: 20,
-				duration: 0.5,
-				stagger: 0.1,
-				ease: "power2.out",
-				delay: 0.2
-			});
-		}
-	}, [isOpen]);
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>{mode === 'add' ? 'Add New Asset' : 'Edit Asset'}</DialogTitle>
+        </DialogHeader>
 
-	const handleSubmit = (e: React.FormEvent) => {
-		e.preventDefault();
-		
-		// Animate form submission
-		gsap.to(".form-element", {
-			scale: 0.95,
-			duration: 0.1,
-			ease: "power2.in",
-			onComplete: () => {
-				onSubmit(formData);
-				onClose();
-			}
-		});
-	};
+        <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-6">
+          <div className="space-y-4">
+            <div>
+              <Label>Asset Type</Label>
+              <RadioGroup
+                defaultValue={watch('type')}
+                onValueChange={(value) => setValue('type', value as 'crypto' | 'stock')}
+                className="flex gap-4 mt-2"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="crypto" id="crypto" />
+                  <Label htmlFor="crypto">Cryptocurrency</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="stock" id="stock" />
+                  <Label htmlFor="stock">Stock</Label>
+                </div>
+              </RadioGroup>
+              {errors.type && (
+                <p className="text-sm text-red-500 mt-1">{errors.type.message}</p>
+              )}
+            </div>
 
-	return (
-		<Modal 
-			isOpen={isOpen} 
-			onClose={onClose}
-			classNames={{
-				base: "bg-white dark:bg-primary",
-				header: "text-text-primary dark:text-white",
-				body: "text-text-primary dark:text-white",
-				footer: "border-t-1 border-gray-light dark:border-gray-dark"
-			}}
-		>
-			<ModalContent>
-				<form onSubmit={handleSubmit}>
-					<ModalHeader>
-						{mode === 'add' ? 'Add New Asset' : 'Edit Asset'}
-					</ModalHeader>
-					<ModalBody>
-						<div className="space-y-4">
-							<div className="form-element">
-								<Input
-									label="Symbol"
-									placeholder="e.g., AAPL, BTC"
-									value={formData.symbol}
-									onChange={(e) => setFormData({ ...formData, symbol: e.target.value })}
-									className="bg-gray-light dark:bg-gray-dark"
-									required
-								/>
-							</div>
-							<div className="form-element">
-								<Select
-									label="Asset Type"
-									placeholder="Select asset type"
-									selectedKeys={[formData.type]}
-									onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-									className="bg-gray-light dark:bg-gray-dark"
-									required
-								>
-									{assetTypes.map((type) => (
-										<SelectItem key={type.value} value={type.value}>
-											{type.label}
-										</SelectItem>
-									))}
-								</Select>
-							</div>
-							<div className="form-element">
-								<Input
-									label="Units"
-									type="number"
-									step="any"
-									value={formData.units.toString()}
-									onChange={(e) => setFormData({ ...formData, units: parseFloat(e.target.value) })}
-									className="bg-gray-light dark:bg-gray-dark"
-									required
-								/>
-							</div>
-							<div className="form-element">
-								<Input
-									label="Purchase Price"
-									type="number"
-									step="any"
-									value={formData.purchasePrice.toString()}
-									onChange={(e) => setFormData({ ...formData, purchasePrice: parseFloat(e.target.value) })}
-									className="bg-gray-light dark:bg-gray-dark"
-									required
-								/>
-							</div>
-						</div>
-					</ModalBody>
-					<ModalFooter>
-						<Button 
-							color="danger" 
-							variant="light" 
-							onPress={onClose}
-							className="text-accent"
-						>
-							Cancel
-						</Button>
-						<Button 
-							color="secondary" 
-							type="submit"
-							className="bg-secondary hover:bg-secondary/90 text-white"
-						>
-							{mode === 'add' ? 'Add Asset' : 'Save Changes'}
-						</Button>
-					</ModalFooter>
-				</form>
-			</ModalContent>
-		</Modal>
-	);
+            <div>
+              <Label htmlFor="symbol">Symbol</Label>
+              <Input
+                id="symbol"
+                placeholder="e.g., BTC, AAPL"
+                {...register('symbol')}
+                className="mt-1"
+              />
+              {errors.symbol && (
+                <p className="text-sm text-red-500 mt-1">{errors.symbol.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="quantity">Quantity</Label>
+              <Input
+                id="quantity"
+                type="number"
+                step="any"
+                placeholder="0.00"
+                {...register('quantity', { valueAsNumber: true })}
+                className="mt-1"
+              />
+              {errors.quantity && (
+                <p className="text-sm text-red-500 mt-1">{errors.quantity.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="purchasePrice">Purchase Price</Label>
+              <Input
+                id="purchasePrice"
+                type="number"
+                step="any"
+                placeholder="0.00"
+                {...register('purchasePrice', { valueAsNumber: true })}
+                className="mt-1"
+              />
+              {errors.purchasePrice && (
+                <p className="text-sm text-red-500 mt-1">{errors.purchasePrice.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="purchaseDate">Purchase Date</Label>
+              <Input
+                id="purchaseDate"
+                type="datetime-local"
+                {...register('purchaseDate')}
+                defaultValue={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
+                className="mt-1"
+              />
+              {errors.purchaseDate && (
+                <p className="text-sm text-red-500 mt-1">{errors.purchaseDate.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="notes">Notes (Optional)</Label>
+              <Input
+                id="notes"
+                placeholder="Add any notes about this purchase"
+                {...register('notes')}
+                className="mt-1"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-4">
+            <Button variant="outline" onClick={onClose} type="button">
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {mode === 'add' ? 'Adding...' : 'Saving...'}
+                </>
+              ) : (
+                mode === 'add' ? 'Add Asset' : 'Save Changes'
+              )}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
 }

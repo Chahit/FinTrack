@@ -15,13 +15,31 @@ async function fetchCryptoTrending() {
 }
 
 async function fetchStockTrending() {
-  // You would implement this with a real stock API
-  // This is a mock implementation
-  return [
-    { id: 'AAPL', name: 'Apple Inc', symbol: 'AAPL', type: 'stock', price_change_24h: 2.5 },
-    { id: 'MSFT', name: 'Microsoft', symbol: 'MSFT', type: 'stock', price_change_24h: 1.8 },
-    { id: 'GOOGL', name: 'Alphabet', symbol: 'GOOGL', type: 'stock', price_change_24h: -0.5 },
-  ];
+  // Fetch trending stocks from Yahoo Finance API
+  const trendingSymbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA'];
+  const promises = trendingSymbols.map(async (symbol) => {
+    try {
+      const response = await fetch(
+        `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`
+      );
+      const data = await response.json();
+      const quote = data.chart.result[0].meta;
+      
+      return {
+        id: symbol,
+        name: quote.shortName || symbol,
+        symbol: symbol,
+        type: 'stock',
+        price_change_24h: ((quote.regularMarketPrice - quote.previousClose) / quote.previousClose) * 100
+      };
+    } catch (error) {
+      console.error(`Error fetching data for ${symbol}:`, error);
+      return null;
+    }
+  });
+
+  const results = await Promise.all(promises);
+  return results.filter((result): result is NonNullable<typeof result> => result !== null);
 }
 
 export async function GET(req: NextRequest) {

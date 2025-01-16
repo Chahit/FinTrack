@@ -1,148 +1,107 @@
-import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
-import Link from "next/link";
+import { Button } from '@/components/ui/button';
+import { SignInButton, SignUpButton } from '@clerk/nextjs';
+import { ArrowRight, BarChart2, Shield, Zap, BookOpen, Users, LineChart } from 'lucide-react';
+import Link from 'next/link';
+import { Footer } from '@/components/layout/Footer';
+import { auth } from '@clerk/nextjs/server';
+import { redirect } from 'next/navigation';
 
-export default function HomePage() {
+export default async function Home() {
+  const { userId } = await auth();
+
+  if (userId) {
+    return redirect("/dashboard");
+  }
+
+  const features = [
+
+    {
+      name: 'Real-time Market Data',
+      description: 'Access live market data, price alerts, and comprehensive financial information.',
+      icon: LineChart,
+    },
+    {
+      name: 'Advanced Analytics',
+      description: 'Powerful tools for technical analysis, pattern recognition, and market insights.',
+      icon: BarChart2,
+    },
+    {
+      name: 'Risk Management',
+      description: 'Sophisticated risk assessment tools and portfolio optimization strategies.',
+      icon: Shield,
+    },
+    {
+      name: 'Trading Automation',
+      description: 'Automated trading strategies with customizable parameters and backesting.',
+      icon: Zap,
+    },
+    {
+      name: 'Educational Resources',
+      description: 'Comprehensive learning materials, tutorials, and market research.',
+      icon: BookOpen,
+    },
+    {
+      name: 'Social Trading',
+      description: 'Connect with other traders, share insights, and learn from the community.',
+      icon: Users,
+    },
+  ];
+
   return (
-    <div className="relative">
+    <div className="flex min-h-screen flex-col">
       {/* Hero Section */}
-      <section className="py-24">
-        <div className="container px-4 md:px-6">
-          <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
-            <div className="flex flex-col justify-center space-y-4">
-              <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
-                  Track Your Finances
-                  <span className="text-gradient"> Like Never Before</span>
-                </h1>
-                <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                  Advanced analytics, real-time tracking, and intelligent insights to help you make better financial decisions.
-                </p>
-              </div>
-              <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                <SignedOut>
-                  <SignInButton mode="modal">
-                    <button className="btn-primary">
-                      Get Started
-                    </button>
-                  </SignInButton>
-                </SignedOut>
-                <SignedIn>
-                  <Link href="/dashboard" className="btn-primary">
-                    Go to Dashboard
-                  </Link>
-                </SignedIn>
-                <Link href="/about" className="btn-secondary">
-                  Learn More
-                </Link>
-              </div>
-            </div>
-            <div className="mx-auto flex w-full items-center justify-center">
-              <div className="w-full">
-                <div className="grid gap-4 md:grid-cols-2">
-                  {/* Feature Cards */}
-                  <div className="relative group overflow-hidden rounded-lg border p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 glow-effect">
-                    <div className="space-y-2">
-                      <h3 className="font-bold">Portfolio Tracking</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Monitor your investments in real-time with advanced portfolio analytics.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="relative group overflow-hidden rounded-lg border p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 glow-effect">
-                    <div className="space-y-2">
-                      <h3 className="font-bold">Risk Analysis</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Understand and optimize your portfolio risk with AI-powered insights.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="relative group overflow-hidden rounded-lg border p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 glow-effect">
-                    <div className="space-y-2">
-                      <h3 className="font-bold">Market Data</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Access real-time market data and trends from global markets.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="relative group overflow-hidden rounded-lg border p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 glow-effect">
-                    <div className="space-y-2">
-                      <h3 className="font-bold">Smart Alerts</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Get intelligent notifications about market movements and opportunities.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <section className="container mx-auto px-4 py-24 text-center">
+      <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
+        Your Financial Journey Starts Here
+      </h1>
+      <p className="mt-6 text-lg text-muted-foreground">
+        Track your investments, analyze markets, and make informed decisions with FinTrack
+      </p>
+      <div className="mt-8 flex items-center justify-center gap-4">
+        <SignUpButton mode="modal">
+        <Button size="lg">Get Started</Button>
+        </SignUpButton>
+        <SignInButton mode="modal">
+        <Button variant="outline" size="lg">Sign In</Button>
+        </SignInButton>
+      </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-24 bg-secondary/50">
-        <div className="container px-4 md:px-6">
-          <div className="grid gap-6 lg:grid-cols-3 lg:gap-12">
-            {/* Feature 1 */}
-            <div className="flex flex-col justify-center space-y-4">
-              <div className="space-y-2">
-                <h2 className="text-2xl font-bold">Advanced Analytics</h2>
-                <p className="text-muted-foreground">
-                  Get deep insights into your portfolio performance with our advanced analytics tools.
-                </p>
-              </div>
-            </div>
-            {/* Feature 2 */}
-            <div className="flex flex-col justify-center space-y-4">
-              <div className="space-y-2">
-                <h2 className="text-2xl font-bold">Real-time Tracking</h2>
-                <p className="text-muted-foreground">
-                  Monitor your investments in real-time with live market data and updates.
-                </p>
-              </div>
-            </div>
-            {/* Feature 3 */}
-            <div className="flex flex-col justify-center space-y-4">
-              <div className="space-y-2">
-                <h2 className="text-2xl font-bold">Smart Insights</h2>
-                <p className="text-muted-foreground">
-                  Receive AI-powered recommendations to optimize your investment strategy.
-                </p>
-              </div>
-            </div>
-          </div>
+      <section className="container mx-auto px-4 py-24">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            Everything you need to succeed in the financial markets
+          </h2>
+          <p className="mt-4 text-lg text-muted-foreground">
+            A complete suite of tools for market analysis, portfolio management, and trading
+          </p>
         </div>
+
+        <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          {features.map((feature) => {
+            const Icon = feature.icon;
+            return (
+              <div
+                key={feature.name}
+                className="rounded-lg border bg-card p-8 shadow-sm transition-all hover:shadow-md"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                  <Icon className="h-5 w-5 text-primary" />
+                </div>
+                <h3 className="mt-4 text-lg font-semibold">{feature.name}</h3>
+                <p className="mt-2 text-muted-foreground">{feature.description}</p>
+              </div>
+            );
+          })}
+        </div>
+
+
+
       </section>
 
-      {/* CTA Section */}
-      <section className="py-24">
-        <div className="container px-4 md:px-6">
-          <div className="flex flex-col items-center justify-center space-y-4 text-center">
-            <div className="space-y-2">
-              <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight">
-                Ready to Take Control of Your Finances?
-              </h2>
-              <p className="mx-auto max-w-[600px] text-muted-foreground md:text-xl">
-                Join thousands of investors who trust FinTrack for their financial journey.
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 min-[400px]:flex-row">
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <button className="btn-primary">
-                    Start Now
-                  </button>
-                </SignInButton>
-              </SignedOut>
-              <SignedIn>
-                <Link href="/dashboard" className="btn-primary">
-                  View Dashboard
-                </Link>
-              </SignedIn>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }

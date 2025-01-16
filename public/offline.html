@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinTrack - Offline</title>
+    <style>
+        :root {
+            --primary: #5C33F6;
+            --secondary: #33B1FF;
+            --accent: #33FFB1;
+            --background: #FFFFFF;
+            --text: #1A1A1A;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --background: #121212;
+                --text: #F5F5F5;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--background);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p {
+            font-size: 1.125rem;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: transform 0.2s ease;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+        }
+
+        .icon {
+            font-size: 4rem;
+            margin-bottom: 2rem;
+            color: var(--primary);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon pulse">📶</div>
+        <h1>You're Offline</h1>
+        <p>
+            It seems you've lost your internet connection. Don't worry - your data is safely stored and will sync automatically when you're back online.
+        </p>
+        <a href="/" class="button">Try Again</a>
+    </div>
+    <script>
+        // Check for online status
+        window.addEventListener('online', () => {
+            window.location.reload();
+        });
+
+        // Add pulse animation to the retry button
+        document.querySelector('.button').addEventListener('click', (e) => {
+            if (!navigator.onLine) {
+                e.preventDefault();
+                document.querySelector('.icon').textContent = '🔄';
+                setTimeout(() => {
+                    document.querySelector('.icon').textContent = '📶';
+                }, 1000);
+            }
+        });
+    </script>
+</body>
+</html>

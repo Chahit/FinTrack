@@ -16,17 +16,6 @@ export async function fetchMarketData() {
     const spyPreviousClose = spyData.chart.result[0].meta.previousClose;
     const spyChange = ((spyPrice - spyPreviousClose) / spyPreviousClose) * 100;
 
-    // Fetch gold price from metals-api alternative (free)
-    const goldResponse = await fetch(
-      'https://www.goldapi.io/api/XAU/USD',
-      {
-        headers: {
-          'x-access-token': 'goldapi-free'
-        }
-      }
-    );
-    const goldData = await goldResponse.json();
-
     // Use alternative Fear & Greed Index API (free)
     const fearGreedResponse = await fetch(
       'https://api.alternative.me/fng/'
@@ -42,10 +31,6 @@ export async function fetchMarketData() {
         price: spyPrice,
         change: spyChange
       },
-      gold: {
-        price: goldData.price,
-        change: goldData.ch
-      },
       fearAndGreed: {
         value: fearGreedData.data[0].value,
         status: fearGreedData.data[0].value_classification
@@ -53,103 +38,50 @@ export async function fetchMarketData() {
     };
   } catch (error) {
     console.error('Error fetching market data:', error);
-    // Return fallback data in case of API failures
-    return {
-      bitcoin: {
-        price: 0,
-        change: 0
-      },
-      sp500: {
-        price: 0,
-        change: 0
-      },
-      gold: {
-        price: 0,
-        change: 0
-      },
-      fearAndGreed: {
-        value: 0,
-        status: 'Unknown'
-      }
-    };
+    throw error;
   }
 }
 
-// Portfolio Data APIs (using local mock data for now)
+// Portfolio Data APIs
 export async function fetchPortfolioData(userId: string) {
   try {
-    // In a real app, this would fetch from your backend
-    // For now, we'll use mock data
-    const mockData = {
-      totalValue: 36195.739,
-      previousValue: 34961.179,
+    const response = await fetch(`/api/portfolio/${userId}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch portfolio data');
+    }
+    
+    const data = await response.json();
+    return {
+      totalValue: data.portfolio.totalValue,
+      previousValue: data.portfolio.previousValue,
       dailyChange: {
-        percentage: 2.45,
-        value: 567.89,
+        percentage: data.portfolio.dailyChangePercentage,
+        value: data.portfolio.dailyChange,
       },
       assets: {
-        count: 4,
-        bestPerformer: {
-          symbol: 'BTC',
-          change: 2.45,
-        },
+        count: data.portfolio.holdings.length,
+        bestPerformer: data.portfolio.holdings.reduce((best: any, current: any) => {
+          return (!best || current.gainLossPercentage > best.gainLossPercentage) ? current : best;
+        }, null),
       },
     };
-    
-    return mockData;
   } catch (error) {
     console.error('Error fetching portfolio data:', error);
     throw error;
   }
 }
 
-// Market News API (using free NewsAPI)
+// Market News API (using NewsAPI)
 export async function fetchMarketNews() {
   try {
-    const response = await fetch(
-      'https://newsapi.org/v2/everything?q=finance+market&language=en&sortBy=publishedAt&pageSize=10&apiKey=dummy'
-    );
-    const data = await response.json();
-
-    // If API fails, return mock news data
+    const response = await fetch('/api/market/news');
     if (!response.ok) {
-      return {
-        articles: [
-          {
-            title: "Market Update: S&P 500 Reaches New Heights",
-            description: "The S&P 500 continues its upward trend as tech stocks lead the rally.",
-            url: "#",
-            publishedAt: new Date().toISOString()
-          },
-          {
-            title: "Bitcoin Surges Past Previous Resistance",
-            description: "Cryptocurrency markets show strong momentum as Bitcoin breaks through key levels.",
-            url: "#",
-            publishedAt: new Date().toISOString()
-          }
-        ]
-      };
+      throw new Error('Failed to fetch market news');
     }
-
-    return data;
+    return await response.json();
   } catch (error) {
     console.error('Error fetching market news:', error);
-    return {
-      articles: [
-        {
-          title: "Market Update: S&P 500 Reaches New Heights",
-          description: "The S&P 500 continues its upward trend as tech stocks lead the rally.",
-          url: "#",
-          publishedAt: new Date().toISOString()
-        },
-        {
-          title: "Bitcoin Surges Past Previous Resistance",
-          description: "Cryptocurrency markets show strong momentum as Bitcoin breaks through key levels.",
-          url: "#",
-          publishedAt: new Date().toISOString()
-        }
-      ]
-    };
+    throw error;
   }
 }
 

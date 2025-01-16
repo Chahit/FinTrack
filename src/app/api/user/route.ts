@@ -1,66 +1,98 @@
-import { getAuth } from "@clerk/nextjs/server";
-import { NextRequest, NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/mongodb";
+import { auth } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { z } from 'zod';
 
-export async function PUT(req: NextRequest) {
+export async function GET(request: Request) {
+  const { userId } = await auth();
+  if (!userId) {
+    return new NextResponse('Unauthorized', { status: 401 });
+  }
+
   try {
-    const { userId } = getAuth(req);
-    if (!userId) {
-      return new NextResponse("Unauthorized", {
-        status: 401,
-      });
-    }
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        portfolios: true,
+        alerts: true
+      }
+    });
 
-    const body = await req.json();
-    const { db } = await connectToDatabase();
-    const users = db.collection("users");
-
-    const user = await users.findOne({ userId });
     if (!user) {
-      await users.insertOne({
-        userId,
-        ...body,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-    } else {
-      await users.updateOne(
-        { userId },
-        {
-          $set: {
-            ...body,
-            updatedAt: new Date(),
-          },
-        }
-      );
+      return new NextResponse('User not found', { status: 404 });
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      portfolios: user.portfolios,
+      alerts: user.alerts
+    });
   } catch (error) {
-    console.error("Error updating user:", error);
-    return NextResponse.json(
-      { error: "Failed to update user" },
-      { status: 500 }
-    );
+    console.error('GET user error:', error);
+    return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
 
-export async function DELETE(req: NextRequest) {
+export async function PUT(request: Request) {
+  const { userId } = await auth();
+  if (!userId) {
+    return new NextResponse('Unauthorized', { status: 401 });
+  }
+
   try {
-    const { userId } = getAuth(req);
-    
-    if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const updateSchema = z.object({
+      name: z.string().optional(),
+      email: z.string().email().optional(),
+    });
 
-    const { db } = await connectToDatabase();
-    const users = db.collection("users");
+    const body = await request.json();
+    const validatedData = updateSchema.parse(body);
 
-    await users.deleteOne({ userId });
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: validatedData,
+      include: {
+        portfolios: true,
+        alerts: true
+      }
+    });
 
-    return NextResponse.json({ message: "Account deleted successfully" });
+    return NextResponse.json({
+      id: updatedUser.id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt,
+      portfolios: updatedUser.portfolios,
+      alerts: updatedUser.alerts
+    });
   } catch (error) {
-    console.error('Delete user error:', error);
-    return NextResponse.json({ message: "Error deleting account" }, { status: 500 });
+    console.error('PUT user error:', error);
+    if (error instanceof z.ZodError) {
+      return new NextResponse('Invalid request data', { status: 400 });
+    }
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  const { userId } = await auth();
+  if (!userId) {
+    return new NextResponse('Unauthorized', { status: 401 });
+  }
+
+  try {
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    console.error('DELETE user error:', error);
+    return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
