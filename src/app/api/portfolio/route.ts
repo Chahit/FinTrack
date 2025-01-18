@@ -3,8 +3,8 @@ import { auth } from '@clerk/nextjs';
 import { prisma } from '@/lib/prisma';
 import { updateAssetPrices } from '@/lib/price-service';
 
-// Add Edge Runtime configuration
-export const runtime = 'edge';
+// Use Node.js runtime for Prisma compatibility
+export const runtime = 'nodejs';
 
 type AssetType = 'crypto' | 'stock';
 type TransactionType = 'BUY' | 'SELL';

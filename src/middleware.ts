@@ -1,4 +1,4 @@
-import { authMiddleware } from "@clerk/nextjs";
+import { authMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -15,10 +15,6 @@ export default authMiddleware({
     "/_not-found",
   ],
   debug: false,
-  afterAuth(auth, req: NextRequest) {
-    // Handle auth response here if needed
-    return NextResponse.next();
-  }
 });
 
 export const config = {
@@ -27,5 +23,4 @@ export const config = {
     "/",
     "/(api|trpc)(.*)",
   ],
-  runtime: "experimental-edge",
 };
