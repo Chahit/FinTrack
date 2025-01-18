@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { Bell } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { PushNotificationRegistration } from './PushNotificationRegistration';
 
 interface Notification {
   id: string;
@@ -80,8 +79,6 @@ export function NotificationBell() {
 
   return (
     <div className="flex items-center gap-2">
-      <PushNotificationRegistration />
-      
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
