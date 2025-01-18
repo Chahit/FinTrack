@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs';
 import { prisma } from '@/lib/prisma';
 import { updateAssetPrices } from '@/lib/price-service';
-import { Asset, Portfolio } from '@prisma/client';
+import { Asset, Portfolio, Prisma } from '@prisma/client';
 
 interface AssetWithTransactions extends Asset {
   transactions: Array<{
@@ -39,10 +39,12 @@ export async function GET(req: NextRequest) {
     }
 
     // First check if user exists, if not create them
-    const user = await prisma.user.findUnique({
+    const userQuery = {
       where: { id: userId },
       include: { portfolio: true }
-    });
+    } satisfies Prisma.UserFindUniqueArgs;
+    
+    const user = await prisma.user.findUnique(userQuery);
 
     if (!user) {
       // Create user and portfolio
@@ -58,7 +60,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Now get or create portfolio
-    let portfolio = await prisma.portfolio.findUnique({
+    const portfolioQuery = {
       where: { userId },
       include: {
         assets: {
@@ -67,7 +69,9 @@ export async function GET(req: NextRequest) {
           },
         },
       },
-    }) as PortfolioWithAssets | null;
+    } satisfies Prisma.PortfolioFindUniqueArgs;
+
+    let portfolio = await prisma.portfolio.findUnique(portfolioQuery) as PortfolioWithAssets | null;
 
     if (!portfolio) {
       portfolio = await prisma.portfolio.create({
