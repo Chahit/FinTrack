@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Table,
   TableBody,
@@ -24,9 +25,10 @@ import { toast } from '@/components/ui/use-toast';
 
 interface AssetListProps {
   assets: any[];
+  refetch: () => Promise<any>;
 }
 
-export function AssetList({ assets }: AssetListProps) {
+export function AssetList({ assets, refetch }: AssetListProps) {
   const [editingAsset, setEditingAsset] = useState<any>(null);
   const [selectedAssetForAlert, setSelectedAssetForAlert] = useState<any>(null);
 
@@ -112,6 +114,7 @@ export function AssetList({ assets }: AssetListProps) {
         onClose={() => setEditingAsset(null)}
         initialData={editingAsset}
         mode="edit"
+        refetch={refetch}
         onSubmit={async (formData) => {
           try {
             const response = await fetch(`/api/portfolio/assets/${editingAsset.id}`, {

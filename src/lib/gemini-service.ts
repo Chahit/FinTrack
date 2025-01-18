@@ -41,9 +41,9 @@ Keep responses concise, professional, and data-driven.
 
 If a user asks about their portfolio but no data is available, kindly inform them that they need to add assets to their portfolio first.`;
 
-  private static async getPortfolioData(): Promise<PortfolioData | null> {
+  private static async getPortfolioData(): Promise<any> {
     try {
-      const response = await fetch('/api/portfolio', {
+      const response = await fetch('/api/portfolio/assets', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -64,27 +64,45 @@ If a user asks about their portfolio but no data is available, kindly inform the
         return null;
       }
 
-      return data;
+      return {
+        assets: data.assets,
+        summary: {
+          totalValue: data.summary.totalValue || 0,
+          dayChange: data.summary.dayChange || 0,
+          totalGainLoss: data.summary.totalGainLoss || 0,
+          totalAssets: data.assets.length
+        }
+      };
     } catch (error) {
       console.error('Failed to fetch portfolio data:', error);
       return null;
     }
   }
 
-  private static formatPortfolioContext(data: PortfolioData | null): string {
+  private static formatPortfolioContext(data: any): string {
     if (!data || !data.assets || data.assets.length === 0) {
       return "No assets found in your portfolio. Please add some assets to get personalized insights.";
     }
 
+    const { assets, summary } = data;
+
     return `
 Current Portfolio Status:
-- Total Portfolio Value: $${data.totalValue.toFixed(2)}
-- Daily Change: ${data.dailyChange >= 0 ? '+' : ''}$${data.dailyChange.toFixed(2)}
+- Total Portfolio Value: $${summary.totalValue.toLocaleString()}
+- Daily Change: ${summary.dayChange >= 0 ? '+' : ''}${summary.dayChange.toFixed(2)}%
+- Total Profit/Loss: ${summary.totalGainLoss >= 0 ? '+' : ''}$${summary.totalGainLoss.toLocaleString()}
+- Number of Assets: ${summary.totalAssets}
 
 Your Assets:
-${data.assets.map(asset => 
-  `- ${asset.symbol} (${asset.type}): ${asset.amount} units at $${asset.currentPrice.toFixed(2)} (24h change: ${asset.priceChange24h >= 0 ? '+' : ''}${asset.priceChange24h.toFixed(2)}%)`
+${assets.map((asset: any) => 
+  `- ${asset.symbol} (${asset.type}): ${asset.quantity} units at $${asset.metrics?.currentPrice?.toFixed(2) || '0'} (24h change: ${asset.metrics?.priceChange24h >= 0 ? '+' : ''}${asset.metrics?.priceChange24h?.toFixed(2) || '0'}%)`
 ).join('\n')}
+
+Asset Allocation:
+${assets.map((asset: any) => {
+  const percentage = (asset.metrics?.currentValue / summary.totalValue * 100) || 0;
+  return `- ${asset.symbol}: ${percentage.toFixed(2)}%`;
+}).join('\n')}
 `;
   }
 

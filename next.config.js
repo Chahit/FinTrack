@@ -5,7 +5,10 @@ const nextConfig = {
         return [];
     },
     poweredByHeader: false,
-    compress: true
+    compress: true,
+    images: {
+        domains: ['assets.coingecko.com'],
+    },
 }
 
 module.exports = nextConfig

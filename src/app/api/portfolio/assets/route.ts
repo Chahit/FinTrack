@@ -1,60 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs';
 import { prisma } from '@/lib/prisma';
-import { z } from 'zod';
-import { getCurrentPrice } from '@/lib/price-service';
-import { Prisma } from '.prisma/client';
+import { updateAssetPrices } from '@/lib/price-service';
 
-type Asset = {
+type AssetType = 'crypto' | 'stock';
+type TransactionType = 'BUY' | 'SELL';
+
+interface PrismaAsset {
   id: string;
   symbol: string;
-  type: 'crypto' | 'stock';
+  type: string;
   quantity: number;
   purchasePrice: number;
   purchaseDate: Date;
-  notes?: string;
+  notes: string | null;
   portfolioId: string;
   createdAt: Date;
   updatedAt: Date;
-};
+}
 
-type Transaction = {
+interface PrismaTransaction {
   id: string;
-  type: 'BUY' | 'SELL';
+  type: string;
   quantity: number;
   price: number;
   date: Date;
   assetId: string;
   portfolioId: string;
+  notes: string | null;
   createdAt: Date;
   updatedAt: Date;
-};
+}
 
-// Schema for asset validation
-const assetSchema = z.object({
-  symbol: z.string().min(1),
-  type: z.enum(['crypto', 'stock']),
-  quantity: z.union([
-    z.number().positive(),
-    z.string().transform((val) => Number(val))
-  ]).refine((val) => !isNaN(val) && val > 0, {
-    message: 'Quantity must be a positive number'
-  }),
-  purchasePrice: z.union([
-    z.number().positive(),
-    z.string().transform((val) => Number(val))
-  ]).refine((val) => !isNaN(val) && val > 0, {
-    message: 'Purchase price must be a positive number'
-  }),
-  purchaseDate: z.string().transform((val) => {
-    const date = new Date(val);
-    if (isNaN(date.getTime())) {
-      throw new Error('Invalid date format');
-    }
-    return date.toISOString();
-  }),
-  notes: z.string().optional().transform(val => val || ''),
-});
+interface Asset extends Omit<PrismaAsset, 'type'> {
+  type: AssetType;
+}
+
+interface Transaction extends Omit<PrismaTransaction, 'type'> {
+  type: TransactionType;
+}
 
 interface AssetWithTransactions extends Asset {
   transactions: Transaction[];
@@ -66,8 +50,7 @@ interface AssetMetrics {
   gainLoss: number;
   gainLossPercentage: number;
   currentPrice: number;
-  priceChange24h: number;
-  error?: string;
+  priceChange24h?: number;
 }
 
 interface AssetWithMetrics extends Asset {
@@ -75,80 +58,16 @@ interface AssetWithMetrics extends Asset {
   metrics: AssetMetrics;
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = await req.json();
-    const validatedData = assetSchema.parse(body);
-
-    // First, ensure the user exists
-    const user = await prisma.user.upsert({
-      where: { id: userId },
-      create: {
-        id: userId,
-        email: '',
-      },
-      update: {},
-    });
-
-    // Then get or create portfolio for user
-    const portfolio = await prisma.portfolio.upsert({
-      where: { userId: user.id },
-      create: { userId: user.id },
-      update: {},
-    });
-
-    // Create new asset with a transaction in a single transaction
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const asset = await tx.asset.create({
-        data: {
-          portfolioId: portfolio.id,
-          symbol: validatedData.symbol.toUpperCase(),
-          type: validatedData.type,
-          quantity: validatedData.quantity,
-          purchasePrice: validatedData.purchasePrice,
-          purchaseDate: new Date(validatedData.purchaseDate),
-          notes: validatedData.notes,
-        },
-      });
-
-      await tx.transaction.create({
-        data: {
-          portfolioId: portfolio.id,
-          assetId: asset.id,
-          type: 'BUY',
-          quantity: validatedData.quantity,
-          price: validatedData.purchasePrice,
-          date: new Date(validatedData.purchaseDate),
-        },
-      });
-
-      return asset;
-    });
-
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error('POST /api/portfolio/assets error:', error);
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
-        { status: 400 }
-      );
-    }
-    return NextResponse.json(
-      { error: 'Failed to create asset', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
+interface AssetAllocation {
+  symbol: string;
+  type: string;
+  value: number;
+  percentage: number;
 }
 
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = await auth();
+    const { userId } = auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -160,99 +79,146 @@ export async function GET(req: NextRequest) {
           include: {
             transactions: true,
           },
-          orderBy: {
-            purchaseDate: 'desc',
-          },
         },
       },
     });
 
     if (!portfolio) {
-      return NextResponse.json({ 
-        assets: [],
-        summary: {
-          totalValue: 0,
-          totalGainLoss: 0,
-          totalAssets: 0,
-          totalGainLossPercentage: 0
-        },
-        allocation: []
-      });
+      return NextResponse.json({ assets: [] });
     }
 
-    // Fetch current prices and calculate metrics for each asset
-    const assetsWithMetrics: AssetWithMetrics[] = await Promise.all(
-      portfolio.assets.map(async (asset: AssetWithTransactions) => {
-        try {
-          const priceResult = await getCurrentPrice(asset.symbol, asset.type as 'crypto' | 'stock');
-          if (!priceResult) {
-            throw new Error(`No price data available for ${asset.symbol}`);
-          }
-          
-          const currentPrice = priceResult;
-          const totalInvested = asset.quantity * asset.purchasePrice;
-          const currentValue = asset.quantity * currentPrice;
-          const gainLoss = currentValue - totalInvested;
-          const gainLossPercentage = (gainLoss / totalInvested) * 100;
+    // Fetch real-time prices for all assets
+    const priceUpdates = await updateAssetPrices(
+      portfolio.assets.map((asset: PrismaAsset) => ({
+        symbol: asset.symbol,
+        type: asset.type as AssetType,
+      }))
+    );
 
-          return {
-            ...asset,
-            metrics: {
-              totalInvested,
-              currentValue,
-              gainLoss,
-              gainLossPercentage,
-              currentPrice,
-              priceChange24h: ((currentPrice - asset.purchasePrice) / asset.purchasePrice) * 100
-            }
-          };
-        } catch (error) {
-          console.error(`Error fetching price for ${asset.symbol}:`, error);
-          // Return asset with more detailed error handling
-          return {
-            ...asset,
-            metrics: {
-              totalInvested: asset.quantity * asset.purchasePrice,
-              currentValue: asset.quantity * asset.purchasePrice,
-              gainLoss: 0,
-              gainLossPercentage: 0,
-              currentPrice: asset.purchasePrice,
-              priceChange24h: 0
-            },
-            error: error instanceof Error ? error.message : 'Failed to fetch current price'
-          };
-        }
+    // Create a map of current prices
+    const currentPrices = new Map(
+      priceUpdates.map(update => [update.symbol, update])
+    );
+
+    // Calculate additional metrics for each asset
+    const assetsWithMetrics = await Promise.all(
+      portfolio.assets.map(async (prismaAsset: PrismaAsset & { transactions: PrismaTransaction[] }) => {
+        const asset = {
+          ...prismaAsset,
+          type: prismaAsset.type as AssetType,
+          transactions: prismaAsset.transactions.map(t => ({ ...t, type: t.type as TransactionType })),
+        };
+
+        const totalInvested = asset.quantity * asset.purchasePrice;
+        const priceData = currentPrices.get(asset.symbol);
+        const currentPrice = priceData?.price ?? asset.purchasePrice;
+        const currentValue = asset.quantity * currentPrice;
+        const gainLoss = currentValue - totalInvested;
+        const gainLossPercentage = ((currentValue - totalInvested) / totalInvested) * 100;
+
+        return {
+          ...asset,
+          metrics: {
+            totalInvested,
+            currentValue,
+            gainLoss,
+            gainLossPercentage,
+            currentPrice,
+            priceChange24h: priceData?.priceChange24h,
+          },
+        } as AssetWithMetrics;
       })
     );
 
     // Calculate portfolio summary
-    const totalValue = assetsWithMetrics.reduce((sum: number, asset: AssetWithMetrics) => sum + asset.metrics.currentValue, 0);
-    const totalInvested = assetsWithMetrics.reduce((sum: number, asset: AssetWithMetrics) => sum + asset.metrics.totalInvested, 0);
+    const totalValue = assetsWithMetrics.reduce((sum, asset) => sum + asset.metrics.currentValue, 0);
+    const totalInvested = assetsWithMetrics.reduce((sum, asset) => sum + asset.metrics.totalInvested, 0);
     const totalGainLoss = totalValue - totalInvested;
-    const totalGainLossPercentage = totalInvested > 0 ? (totalGainLoss / totalInvested) * 100 : 0;
+    const totalGainLossPercentage = ((totalValue - totalInvested) / totalInvested) * 100;
 
     // Calculate asset allocation
-    const allocation = assetsWithMetrics.map((asset: AssetWithMetrics) => ({
+    const allocation = assetsWithMetrics.map((asset): AssetAllocation => ({
       symbol: asset.symbol,
       type: asset.type,
-      percentage: totalValue > 0 ? (asset.metrics.currentValue / totalValue) * 100 : 0
+      value: asset.metrics.currentValue,
+      percentage: (asset.metrics.currentValue / totalValue) * 100,
     }));
 
-    return NextResponse.json({
+    const response = {
       assets: assetsWithMetrics,
       summary: {
-        totalValue,
-        totalGainLoss,
         totalAssets: assetsWithMetrics.length,
-        totalGainLossPercentage
+        totalValue,
+        totalInvested,
+        totalGainLoss,
+        totalGainLossPercentage,
       },
-      allocation
+      allocation,
+    };
+
+    console.log('API Response:', JSON.stringify(response, null, 2));
+    return NextResponse.json(response);
+  } catch (error) {
+    console.error('Failed to fetch portfolio assets:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch portfolio assets' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const { userId } = auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const data = await req.json();
+    const { symbol, type, quantity, purchasePrice, purchaseDate, notes } = data;
+
+    // Get or create portfolio for the user
+    let portfolio = await prisma.portfolio.findUnique({
+      where: { userId },
     });
 
+    if (!portfolio) {
+      portfolio = await prisma.portfolio.create({
+        data: { userId },
+      });
+    }
+
+    // Create the asset
+    const asset = await prisma.asset.create({
+      data: {
+        symbol: symbol.toUpperCase(),
+        type,
+        quantity,
+        purchasePrice,
+        purchaseDate: new Date(purchaseDate),
+        notes: notes || null,
+        portfolioId: portfolio.id,
+      },
+    });
+
+    // Create initial BUY transaction
+    await prisma.transaction.create({
+      data: {
+        type: 'BUY',
+        quantity,
+        price: purchasePrice,
+        date: new Date(purchaseDate),
+        notes: notes || null,
+        assetId: asset.id,
+        portfolioId: portfolio.id,
+      },
+    });
+
+    return NextResponse.json(asset);
   } catch (error) {
-    console.error('GET /api/portfolio/assets error:', error);
+    console.error('Failed to add asset:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch portfolio data' },
+      { error: 'Failed to add asset' },
       { status: 500 }
     );
   }

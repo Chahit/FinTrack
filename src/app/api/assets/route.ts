@@ -5,30 +5,42 @@ import { z } from 'zod';
 import { updateAssetPrices } from '@/lib/price-service';
 import { Prisma } from '.prisma/client';
 
-type Asset = {
+type AssetType = 'crypto' | 'stock';
+type TransactionType = 'BUY' | 'SELL';
+
+interface PrismaAsset {
   id: string;
   symbol: string;
-  type: 'crypto' | 'stock';
+  type: string;
   quantity: number;
   purchasePrice: number;
   purchaseDate: Date;
-  notes?: string;
+  notes: string | null;
   portfolioId: string;
   createdAt: Date;
   updatedAt: Date;
-};
+}
 
-type Transaction = {
+interface PrismaTransaction {
   id: string;
-  type: 'BUY' | 'SELL';
+  type: string;
   quantity: number;
   price: number;
   date: Date;
   assetId: string;
   portfolioId: string;
+  notes: string | null;
   createdAt: Date;
   updatedAt: Date;
-};
+}
+
+interface Asset extends Omit<PrismaAsset, 'type'> {
+  type: AssetType;
+}
+
+interface Transaction extends Omit<PrismaTransaction, 'type'> {
+  type: TransactionType;
+}
 
 interface AssetWithTransactions extends Asset {
   transactions: Transaction[];
@@ -97,7 +109,12 @@ export async function POST(req: NextRequest) {
             quantity: validatedData.quantity,
             price: validatedData.purchasePrice,
             date: new Date(validatedData.purchaseDate),
-          },
+            portfolio: {
+              connect: {
+                id: portfolio.id
+              }
+            }
+          } satisfies Prisma.TransactionCreateWithoutAssetInput,
         },
       },
       include: {
@@ -145,9 +162,9 @@ export async function GET() {
 
     // Fetch real-time prices for all assets
     const priceUpdates = await updateAssetPrices(
-      portfolio.assets.map((asset: Asset) => ({
+      portfolio.assets.map((asset: PrismaAsset) => ({
         symbol: asset.symbol,
-        type: asset.type,
+        type: asset.type as AssetType,
       }))
     );
 
@@ -157,7 +174,13 @@ export async function GET() {
     );
 
     // Calculate additional metrics for each asset
-    const assetsWithMetrics = portfolio.assets.map((asset: Asset) => {
+    const assetsWithMetrics = portfolio.assets.map((prismaAsset: PrismaAsset & { transactions: PrismaTransaction[] }) => {
+      const asset = {
+        ...prismaAsset,
+        type: prismaAsset.type as AssetType,
+        transactions: prismaAsset.transactions.map(t => ({ ...t, type: t.type as TransactionType })),
+      };
+
       const totalInvested = asset.quantity * asset.purchasePrice;
       const priceData = currentPrices.get(asset.symbol);
       const currentPrice = priceData?.price ?? asset.purchasePrice;
@@ -179,13 +202,21 @@ export async function GET() {
     });
 
     // Calculate portfolio summary
-    const totalValue = assetsWithMetrics.reduce((sum: number, asset: AssetWithMetrics) => sum + asset.metrics.currentValue, 0);
-    const totalInvested = assetsWithMetrics.reduce((sum: number, asset: AssetWithMetrics) => sum + asset.metrics.totalInvested, 0);
+    console.log('Assets with metrics:', JSON.stringify(assetsWithMetrics, null, 2));
+    const totalValue = assetsWithMetrics.reduce((sum, asset) => sum + asset.metrics.currentValue, 0);
+    const totalInvested = assetsWithMetrics.reduce((sum, asset) => sum + asset.metrics.totalInvested, 0);
     const totalGainLoss = totalValue - totalInvested;
     const totalGainLossPercentage = ((totalValue - totalInvested) / totalInvested) * 100;
 
+    console.log('Portfolio summary:', {
+      totalValue,
+      totalInvested,
+      totalGainLoss,
+      totalGainLossPercentage
+    });
+
     // Calculate asset allocation
-    const allocation = assetsWithMetrics.map((asset: AssetWithMetrics): AssetAllocation => ({
+    const allocation = assetsWithMetrics.map((asset): AssetAllocation => ({
       symbol: asset.symbol,
       type: asset.type,
       value: asset.metrics.currentValue,

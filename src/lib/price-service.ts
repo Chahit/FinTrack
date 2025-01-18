@@ -40,17 +40,27 @@ const CRYPTO_ID_MAP: Record<string, string> = {
 
 async function getCryptoPrice(symbol: string): Promise<{ price: number; priceChange24h: number }> {
   try {
+    console.log(`Fetching crypto price for ${symbol} using CoinGecko API...`);
     const coinId = CRYPTO_ID_MAP[symbol.toUpperCase()] || symbol.toLowerCase();
     const response = await fetch(
       `${COINGECKO_API_BASE}/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true`
     );
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`CoinGecko API error for ${symbol}:`, {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
       throw new Error('Failed to fetch crypto price');
     }
 
     const data = await response.json();
+    console.log(`Received data for ${symbol}:`, data);
+
     if (!data[coinId]) {
+      console.error(`No data found for ${symbol}:`, data);
       throw new Error(`No data found for crypto symbol: ${symbol}`);
     }
 
@@ -66,6 +76,7 @@ async function getCryptoPrice(symbol: string): Promise<{ price: number; priceCha
 
 async function getStockPrice(symbol: string): Promise<{ price: number; priceChange24h: number }> {
   try {
+    console.log(`Fetching stock price for ${symbol} using Finnhub API...`);
     const response = await fetch(
       `${config.finnhub.baseUrl}/quote?symbol=${symbol.toUpperCase()}`,
       {
@@ -76,11 +87,20 @@ async function getStockPrice(symbol: string): Promise<{ price: number; priceChan
     );
 
     if (!response.ok) {
-      throw new Error('Failed to fetch stock price');
+      const errorText = await response.text();
+      console.error(`Finnhub API error for ${symbol}:`, {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
+      throw new Error(`Failed to fetch stock price: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
+    console.log(`Received data for ${symbol}:`, data);
+
     if (!data.c || data.c === 0) {
+      console.error(`No price data found for ${symbol}:`, data);
       throw new Error(`No data found for stock symbol: ${symbol}`);
     }
 
@@ -105,12 +125,14 @@ export async function getCurrentPrice(symbol: string, type: 'crypto' | 'stock'):
 
 export async function updateAssetPrices(assets: Asset[]): Promise<PriceUpdate[]> {
   try {
+    console.log('Updating prices for assets:', assets);
     const pricePromises = assets.map(async (asset) => {
       try {
         const priceData = asset.type === 'crypto'
           ? await getCryptoPrice(asset.symbol)
           : await getStockPrice(asset.symbol);
 
+        console.log(`Updated price for ${asset.symbol}:`, priceData);
         return {
           symbol: asset.symbol,
           price: priceData.price,
@@ -126,7 +148,9 @@ export async function updateAssetPrices(assets: Asset[]): Promise<PriceUpdate[]>
       }
     });
 
-    return await Promise.all(pricePromises);
+    const results = await Promise.all(pricePromises);
+    console.log('Price update results:', results);
+    return results;
   } catch (error) {
     console.error('Error updating asset prices:', error);
     return [];

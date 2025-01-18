@@ -3,21 +3,18 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PageContainer } from '@/components/ui/page-container';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus } from 'lucide-react';
 import { AssetList } from './components/AssetList';
-import { TransactionHistory } from './components/TransactionHistory';
-import { PriceAlerts } from './components/PriceAlerts';
-import { AssetForm } from '@/components/AssetForm';
-import { Plus, Upload, Download } from 'lucide-react';
-import { InteractiveChart } from '@/components/ui/interactive-chart';
-import { CardContainer, CardBody, CardItem } from '@/components/ui/3d-card';
+import { TransactionHistory } from '@/components/TransactionHistory';
+import { PriceAlerts } from '@/components/PriceAlerts';
 import { SparklesCore } from '@/components/ui/sparkles';
-import { SkeletonCard, SkeletonChartCard, SkeletonTable } from '@/components/ui/skeleton-card';
-import { toast } from '@/components/ui/use-toast';
+import { SkeletonCard } from '@/components/ui/skeleton-card';
+import { FlatCard, FlatCardHeader, FlatCardContent } from '@/components/ui/flat-card';
+import { InteractiveChart } from '@/components/ui/interactive-chart';
+import { AssetForm } from '@/components/AssetForm';
 
-// Fetch portfolio data
 async function fetchPortfolioData() {
   const response = await fetch('/api/portfolio/assets');
   if (!response.ok) {
@@ -28,29 +25,34 @@ async function fetchPortfolioData() {
 
 export default function PortfolioPage() {
   const [isAddAssetOpen, setIsAddAssetOpen] = useState(false);
-  const { data: portfolio, isLoading, error } = useQuery({
+  const { data: portfolio, isLoading, error, refetch } = useQuery({
     queryKey: ['portfolio'],
     queryFn: fetchPortfolioData,
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    staleTime: 10000,
   });
 
   if (isLoading) {
     return (
       <PageContainer>
-        <div className="space-y-6">
+        <div className="space-y-8">
           <div className="flex justify-between items-center">
-            <SkeletonCard className="w-[200px]" />
-            <div className="flex gap-2">
-              <SkeletonCard className="w-[100px]" />
-              <SkeletonCard className="w-[100px]" />
+            <SkeletonCard className="w-[200px] h-[40px]" />
+            <div className="flex gap-4">
+              <SkeletonCard className="w-[100px] h-[40px]" />
+              <SkeletonCard className="w-[100px] h-[40px]" />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {Array.from({ length: 4 }).map((_, i) => (
-              <SkeletonCard key={i} />
+              <SkeletonCard key={i} className="h-[120px]" />
             ))}
           </div>
-          <SkeletonChartCard />
-          <SkeletonTable rows={5} />
+          <SkeletonCard className="h-[300px]" />
+          <SkeletonCard className="h-[400px]" />
         </div>
       </PageContainer>
     );
@@ -59,9 +61,13 @@ export default function PortfolioPage() {
   if (error) {
     return (
       <PageContainer>
-        <div className="text-center text-red-500">
-          Error loading portfolio data. Please try again later.
-        </div>
+        <FlatCard>
+          <FlatCardContent>
+            <div className="text-center text-red-500">
+              Error loading portfolio data. Please try again later.
+            </div>
+          </FlatCardContent>
+        </FlatCard>
       </PageContainer>
     );
   }
@@ -76,133 +82,138 @@ export default function PortfolioPage() {
 
   return (
     <PageContainer>
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Portfolio</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Upload className="w-4 h-4 mr-2" />
-            Import
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
-          <Button size="sm" onClick={() => setIsAddAssetOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Asset
-          </Button>
+      <div className="relative">
+        <SparklesCore
+          id="portfolio-sparkles"
+          background="transparent"
+          minSize={0.4}
+          maxSize={1}
+          particleDensity={30}
+          className="absolute top-0 left-0 w-full h-full opacity-50"
+          particleColor="hsl(var(--primary))"
+        />
+
+        <div className="relative z-10 space-y-8">
+          {/* Header */}
+          <div className="flex justify-between items-center">
+            <FlatCard>
+              <FlatCardHeader>
+                <h1 className="text-4xl font-bold tracking-tight">Portfolio</h1>
+              </FlatCardHeader>
+            </FlatCard>
+            <div className="flex gap-4">
+              <Button size="sm" onClick={() => setIsAddAssetOpen(true)} className="light:border-black">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Asset
+              </Button>
+            </div>
+          </div>
+
+          {/* Portfolio Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <FlatCard>
+              <FlatCardContent>
+                <h3 className="text-sm font-medium text-muted-foreground">Total Value</h3>
+                <p className="text-3xl font-bold mt-2">
+                  ${summary.totalValue?.toLocaleString() || '0'}
+                </p>
+              </FlatCardContent>
+            </FlatCard>
+
+            <FlatCard>
+              <FlatCardContent>
+                <h3 className="text-sm font-medium text-muted-foreground">24h Change</h3>
+                <p className={`text-3xl font-bold mt-2 ${
+                  (summary.dayChange || 0) >= 0 ? 'text-green-500' : 'text-red-500'
+                }`}>
+                  {summary.dayChange >= 0 ? '+' : ''}{summary.dayChange?.toFixed(2)}%
+                </p>
+              </FlatCardContent>
+            </FlatCard>
+
+            <FlatCard>
+              <FlatCardContent>
+                <h3 className="text-sm font-medium text-muted-foreground">Total Profit/Loss</h3>
+                <p className={`text-3xl font-bold mt-2 ${
+                  (summary.totalGainLoss || 0) >= 0 ? 'text-green-500' : 'text-red-500'
+                }`}>
+                  ${summary.totalGainLoss?.toLocaleString() || '0'}
+                </p>
+              </FlatCardContent>
+            </FlatCard>
+
+            <FlatCard>
+              <FlatCardContent>
+                <h3 className="text-sm font-medium text-muted-foreground">Number of Assets</h3>
+                <p className="text-3xl font-bold mt-2">{assets.length}</p>
+              </FlatCardContent>
+            </FlatCard>
+          </div>
+
+          {/* Portfolio Chart */}
+          <FlatCard>
+            <FlatCardContent>
+              <div className="h-[300px]">
+                <InteractiveChart
+                  data={chartData}
+                  height={300}
+                  tooltipFormatter={(value) => `$${value.toLocaleString()}`}
+                />
+              </div>
+            </FlatCardContent>
+          </FlatCard>
+
+          {/* Main Content */}
+          <Tabs defaultValue="assets" className="space-y-6">
+            <FlatCard>
+              <FlatCardContent>
+                <TabsList className="w-full justify-start border-b light:border-black">
+                  <TabsTrigger value="assets">Assets</TabsTrigger>
+                  <TabsTrigger value="transactions">Transactions</TabsTrigger>
+                  <TabsTrigger value="alerts">Price Alerts</TabsTrigger>
+                </TabsList>
+              </FlatCardContent>
+            </FlatCard>
+
+            <TabsContent value="assets">
+              <FlatCard>
+                <FlatCardContent>
+                  <AssetList assets={assets} refetch={refetch} />
+                </FlatCardContent>
+              </FlatCard>
+            </TabsContent>
+
+            <TabsContent value="transactions">
+              <FlatCard>
+                <FlatCardContent>
+                  <TransactionHistory assets={assets} />
+                </FlatCardContent>
+              </FlatCard>
+            </TabsContent>
+
+            <TabsContent value="alerts">
+              <FlatCard>
+                <FlatCardContent>
+                  <PriceAlerts assets={assets} />
+                </FlatCardContent>
+              </FlatCard>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
-
-      {/* Portfolio Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <CardContainer>
-          <CardBody>
-            <CardItem>
-              <h3 className="text-sm font-medium text-muted-foreground">Total Value</h3>
-              <p className="text-2xl font-bold mt-2">
-                ${summary.totalValue?.toLocaleString() || '0'}
-              </p>
-            </CardItem>
-          </CardBody>
-        </CardContainer>
-
-        <CardContainer>
-          <CardBody>
-            <CardItem>
-              <h3 className="text-sm font-medium text-muted-foreground">24h Change</h3>
-              <p className={`text-2xl font-bold mt-2 ${
-                (summary.dayChange || 0) >= 0 ? 'text-green-500' : 'text-red-500'
-              }`}>
-                {summary.dayChange >= 0 ? '+' : ''}{summary.dayChange?.toFixed(2)}%
-              </p>
-            </CardItem>
-          </CardBody>
-        </CardContainer>
-
-        <CardContainer>
-          <CardBody>
-            <CardItem>
-              <h3 className="text-sm font-medium text-muted-foreground">Total Profit/Loss</h3>
-              <p className={`text-2xl font-bold mt-2 ${
-                (summary.totalGainLoss || 0) >= 0 ? 'text-green-500' : 'text-red-500'
-              }`}>
-                ${summary.totalGainLoss?.toLocaleString() || '0'}
-              </p>
-            </CardItem>
-          </CardBody>
-        </CardContainer>
-
-        <CardContainer>
-          <CardBody>
-            <CardItem>
-              <h3 className="text-sm font-medium text-muted-foreground">Number of Assets</h3>
-              <p className="text-2xl font-bold mt-2">{assets.length}</p>
-            </CardItem>
-          </CardBody>
-        </CardContainer>
-      </div>
-
-      {/* Portfolio Chart */}
-      <div className="mb-6">
-        <InteractiveChart
-          data={chartData}
-          height={300}
-          tooltipFormatter={(value) => `$${value.toLocaleString()}`}
-        />
-      </div>
-
-      {/* Main Content */}
-      <Tabs defaultValue="assets" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="assets">Assets</TabsTrigger>
-          <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          <TabsTrigger value="alerts">Price Alerts</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="assets">
-          <Card className="p-6">
-            <AssetList assets={assets} />
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="transactions">
-          <Card className="p-6">
-            <TransactionHistory assets={assets} />
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="alerts">
-          <Card className="p-6">
-            <PriceAlerts assets={assets} />
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Asset Form Dialog */}
       <AssetForm
         isOpen={isAddAssetOpen}
         onClose={() => setIsAddAssetOpen(false)}
-        mode="add"
-        onSubmit={async (formData) => {
+        onSubmit={async (data) => {
           try {
-            // Convert string values to numbers and ensure proper date format
-            const data = {
-              ...formData,
-              quantity: Number(formData.quantity),
-              purchasePrice: Number(formData.purchasePrice),
-              purchaseDate: new Date(formData.purchaseDate).toISOString(),
-              type: formData.type.toLowerCase(),
-              notes: formData.notes || ''
-            };
-
             const response = await fetch('/api/portfolio/assets', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+              },
               body: JSON.stringify(data),
             });
-
+            
             if (!response.ok) {
               const errorData = await response.json();
               throw new Error(errorData.error || 'Failed to add asset');
@@ -210,19 +221,13 @@ export default function PortfolioPage() {
 
             await refetch();
             setIsAddAssetOpen(false);
-            toast({
-              title: 'Success',
-              description: 'Asset added successfully',
-            });
           } catch (error) {
-            console.error('Error:', error);
-            toast({
-              title: 'Error',
-              description: error instanceof Error ? error.message : 'Failed to add asset',
-              variant: 'destructive',
-            });
+            console.error('Error adding asset:', error);
+            throw error; // This will be caught by the form's error handling
           }
         }}
+        mode="add"
+        refetch={refetch}
       />
     </PageContainer>
   );

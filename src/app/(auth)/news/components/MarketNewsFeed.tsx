@@ -1,54 +1,51 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { NewsService, NewsItem } from '@/lib/services/news.service';
+import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Bookmark, Share2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CardContainer, CardBody, CardItem } from '@/components/ui/3d-card';
+import { FlatCard, FlatCardHeader, FlatCardContent } from '@/components/ui/flat-card';
 import { SkeletonCard } from '@/components/ui/skeleton-card';
-import { NewsFilters, NewsFiltersProps } from './NewsFilters';
+
+interface NewsArticle {
+  title: string;
+  description: string;
+  url: string;
+  image?: string;
+  publishedAt: string;
+  category: string;
+  source: string;
+}
 
 interface MarketNewsFeedProps {
-  onBookmark?: (newsId: number) => void;
+  category?: string;
   bookmarkedNews?: Set<number>;
+  onBookmark?: (newsId: number) => void;
 }
 
 export function MarketNewsFeed({ 
-  onBookmark,
-  bookmarkedNews = new Set()
+  category = 'general',
+  bookmarkedNews = new Set(),
+  onBookmark
 }: MarketNewsFeedProps) {
-  const [news, setNews] = useState<NewsItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState({
-    category: 'general',
-    sentiment: 'all',
-    search: ''
+  const { data: news, isLoading, error } = useQuery({
+    queryKey: ['market-news', category],
+    queryFn: async () => {
+      const response = await fetch(`/api/news/market?category=${category}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch market news');
+      }
+      const data = await response.json();
+      return data.articles;
+    }
   });
 
-  useEffect(() => {
-    fetchMarketNews();
-  }, [filters]);
-
-  const fetchMarketNews = async () => {
-    setLoading(true);
-    const response = await NewsService.getMarketNews(filters);
-    if (response.error) {
-      setError(response.error);
-    } else {
-      setNews(response.data);
-      setError(null);
-    }
-    setLoading(false);
-  };
-
-  const handleShare = async (newsItem: NewsItem) => {
+  const handleShare = async (newsItem: NewsArticle) => {
     try {
       await navigator.share({
-        title: newsItem.headline,
-        text: newsItem.summary,
+        title: newsItem.title,
+        text: newsItem.description,
         url: newsItem.url
       });
     } catch (error) {
@@ -56,7 +53,7 @@ export function MarketNewsFeed({
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-4">
         {Array.from({ length: 3 }).map((_, i) => (
@@ -68,101 +65,95 @@ export function MarketNewsFeed({
 
   if (error) {
     return (
-      <CardContainer>
-        <CardBody>
-          <CardItem>
-            <div className="text-red-500 text-center p-4">{error}</div>
-          </CardItem>
-        </CardBody>
-      </CardContainer>
+      <FlatCard>
+        <FlatCardContent>
+          <div className="text-red-500 text-center p-4">Failed to load market news</div>
+        </FlatCardContent>
+      </FlatCard>
+    );
+  }
+
+  if (!news || news.length === 0) {
+    return (
+      <FlatCard>
+        <FlatCardContent>
+          <p className="text-center text-muted-foreground">
+            No market news found
+          </p>
+        </FlatCardContent>
+      </FlatCard>
     );
   }
 
   return (
     <div className="space-y-6">
-      <CardContainer>
-        <CardBody>
-          <CardItem>
-            <NewsFilters 
-              onFilterChange={setFilters} 
-              defaultFilters={filters} 
-            />
-          </CardItem>
-        </CardBody>
-      </CardContainer>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-semibold">Latest Market News</h2>
+        <span className="text-sm text-muted-foreground">
+          {news.length} articles found
+        </span>
+      </div>
 
-      {news.length === 0 ? (
-        <CardContainer>
-          <CardBody>
-            <CardItem>
-              <p className="text-center text-muted-foreground">
-                No market news found matching your filters
-              </p>
-            </CardItem>
-          </CardBody>
-        </CardContainer>
-      ) : (
-        <>
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-semibold">Latest Market News</h2>
-            <span className="text-sm text-muted-foreground">
-              {news.length} articles found
-            </span>
-          </div>
-
-          {news.map((item) => (
-            <CardContainer key={item.id}>
-              <CardBody>
-                <CardItem>
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold hover:text-primary">
-                        <a 
-                          href={item.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="flex items-center gap-2"
-                        >
-                          {item.headline}
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      </h3>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                        <Badge variant="secondary">{item.category}</Badge>
-                        <span>•</span>
-                        <span>{item.source}</span>
-                        <span>•</span>
-                        <span>{format(new Date(item.datetime * 1000), 'MMM d, yyyy')}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {onBookmark && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onBookmark(item.id)}
-                        >
-                          <Bookmark
-                            className={`h-4 w-4 ${bookmarkedNews.has(item.id) ? 'fill-primary' : ''}`}
-                          />
-                        </Button>
-                      )}
+      {news.map((article: NewsArticle, index: number) => (
+        <FlatCard key={index}>
+          <FlatCardContent>
+            <div className="flex justify-between items-start gap-4">
+              {article.image && (
+                <img 
+                  src={article.image} 
+                  alt={article.title}
+                  className="w-24 h-24 object-cover rounded"
+                />
+              )}
+              <div className="flex-1">
+                <div className="flex justify-between items-start">
+                  <h3 className="text-lg font-semibold hover:text-primary">
+                    <a 
+                      href={article.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="flex items-center gap-2"
+                    >
+                      {article.title}
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    {onBookmark && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleShare(item)}
+                        onClick={() => onBookmark(index)}
                       >
-                        <Share2 className="h-4 w-4" />
+                        <Bookmark
+                          className={`h-4 w-4 ${bookmarkedNews.has(index) ? 'fill-primary' : ''}`}
+                        />
                       </Button>
-                    </div>
+                    )}
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleShare(article)}
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <p className="text-muted-foreground">{item.summary}</p>
-                </CardItem>
-              </CardBody>
-            </CardContainer>
-          ))}
-        </>
-      )}
+                </div>
+                <p className="text-muted-foreground mt-1">{article.description}</p>
+                <div className="flex items-center gap-4 mt-2">
+                  <Badge variant="secondary">{article.category}</Badge>
+                  <span className="text-sm text-muted-foreground">
+                    {format(new Date(article.publishedAt), 'MMM d, yyyy')}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {article.source}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </FlatCardContent>
+        </FlatCard>
+      ))}
     </div>
   );
 } 

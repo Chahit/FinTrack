@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs';
 
-const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
+interface NewsItem {
+  title: string;
+  description: string;
+  url: string;
+  image?: string;
+  publishedAt: string;
+  category: string;
+  source: string;
+}
+
+const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,35 +25,38 @@ export async function POST(request: NextRequest) {
       return new NextResponse('Invalid symbols provided', { status: 400 });
     }
 
-    // Fetch company news for each symbol
+    if (!ALPHA_VANTAGE_API_KEY) {
+      console.error('Alpha Vantage API key not configured');
+      return new NextResponse('API configuration error', { status: 500 });
+    }
+
+    // Fetch news for all symbols
     const newsPromises = symbols.map(async (symbol) => {
-      const today = new Date();
-      const oneMonthAgo = new Date();
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      try {
+        const response = await fetch(
+          `https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
+        );
 
-      const response = await fetch(
-        `https://finnhub.io/api/v1/company-news?symbol=${symbol}` +
-        `&from=${oneMonthAgo.toISOString().split('T')[0]}` +
-        `&to=${today.toISOString().split('T')[0]}` +
-        `&token=${FINNHUB_API_KEY}`
-      );
+        if (!response.ok) {
+          throw new Error(`Failed to fetch news for ${symbol}`);
+        }
 
-      if (!response.ok) {
-        console.error(`Failed to fetch news for ${symbol}`);
+        const data = await response.json();
+        const articles = data.feed || [];
+
+        return articles.map((article: any) => ({
+          title: article.title,
+          description: article.summary,
+          url: article.url,
+          image: article.banner_image,
+          publishedAt: new Date(article.time_published).toISOString(),
+          category: symbol.match(/^(BTC|ETH|SOL|ADA|AVAX|XRP|DOT|DOGE)$/i) ? 'crypto' : 'stock',
+          source: article.source
+        }));
+      } catch (error) {
+        console.error(`Error fetching news for ${symbol}:`, error);
         return [];
       }
-
-      const data = await response.json();
-      return data.map((item: any) => ({
-        id: item.id,
-        headline: item.headline,
-        summary: item.summary,
-        source: item.source,
-        url: item.url,
-        datetime: item.datetime,
-        category: 'portfolio',
-        related: symbol
-      }));
     });
 
     const results = await Promise.all(newsPromises);
@@ -51,13 +64,23 @@ export async function POST(request: NextRequest) {
     // Combine all news items and remove duplicates
     const allNews = results.flat();
     const uniqueNews = Array.from(
-      new Map(allNews.map(item => [item.headline, item])).values()
+      new Map(allNews.map(item => [item.title, item])).values()
     );
 
-    // Sort by datetime (most recent first)
-    uniqueNews.sort((a, b) => b.datetime - a.datetime);
+    // Sort by publishedAt (most recent first)
+    uniqueNews.sort((a, b) => 
+      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    );
 
-    return NextResponse.json(uniqueNews);
+    // If no news found, return an empty array with a message
+    if (uniqueNews.length === 0) {
+      return NextResponse.json({
+        articles: [],
+        message: 'No recent news found for your portfolio assets'
+      });
+    }
+
+    return NextResponse.json({ articles: uniqueNews });
   } catch (error) {
     console.error('Portfolio news error:', error);
     return new NextResponse('Failed to fetch portfolio news', { status: 500 });

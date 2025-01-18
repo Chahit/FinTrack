@@ -23,26 +23,34 @@ export function TradingViewWidget() {
         "theme": "dark",
         "style": "1",
         "locale": "en",
+        "toolbar_bg": "#f1f3f6",
         "enable_publishing": false,
         "allow_symbol_change": true,
-        "support_host": "https://www.tradingview.com",
+        "container_id": "tradingview-widget",
         "width": "100%",
         "height": "800px",
         "save_image": true,
-        "calendar": true,
-        "hide_side_toolbar": false,
-        "withdateranges": true,
-        "details": true,
-        "hotlist": true,
-        "calendar": true,
         "show_popup_button": true,
         "popup_width": "1000",
         "popup_height": "650",
+        "hide_side_toolbar": false,
+        "withdateranges": true,
+        "hide_volume": false,
+        "support_host": "https://www.tradingview.com",
+        "show_symbol_logo": true,
+        "show_symbol_info": true,
+        "enable_symbol_search": true,
+        "details": true,
+        "hotlist": true,
+        "calendar": true,
         "studies": [
           "RSI@tv-basicstudies",
           "MASimple@tv-basicstudies",
           "MACD@tv-basicstudies"
-        ]
+        ],
+        "show_symbol_search": true,
+        "symbol_search_request_delay": 500,
+        "symbol_search_min_chars": 2
       }`;
 
     const container = document.getElementById('tradingview-widget');
