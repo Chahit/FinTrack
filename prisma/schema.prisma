@@ -16,6 +16,8 @@ model User {
   portfolio Portfolio?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+  groups    ChatGroupMember[]
+  messages  ChatMessage[]
 }
 
 model Portfolio {
@@ -109,10 +111,39 @@ model UserSettings {
 model ChatMessage {
   id        String   @id @default(cuid())
   userId    String
-  username  String
-  message   String
+  user      User     @relation(fields: [userId], references: [id])
+  groupId   String?
+  group     ChatGroup? @relation(fields: [groupId], references: [id])
+  content   String
+  username  String   // Display name for the message
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([createdAt])
+  @@index([groupId])
+}
+
+model ChatGroup {
+  id         String   @id @default(cuid())
+  name       String
+  inviteCode String   @unique
+  createdBy  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  members    ChatGroupMember[]
+  messages   ChatMessage[]
+
+  @@index([inviteCode])
+}
+
+model ChatGroupMember {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  groupId   String
+  group     ChatGroup @relation(fields: [groupId], references: [id])
+  joinedAt  DateTime  @default(now())
+
+  @@unique([userId, groupId])
+  @@index([groupId])
 }

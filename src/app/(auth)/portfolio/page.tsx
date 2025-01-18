@@ -9,12 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AssetList } from './components/AssetList';
 import { TransactionHistory } from './components/TransactionHistory';
 import { PriceAlerts } from './components/PriceAlerts';
-import { AssetForm } from './components/AssetForm';
+import { AssetForm } from '@/components/AssetForm';
 import { Plus, Upload, Download } from 'lucide-react';
 import { InteractiveChart } from '@/components/ui/interactive-chart';
 import { CardContainer, CardBody, CardItem } from '@/components/ui/3d-card';
 import { SparklesCore } from '@/components/ui/sparkles';
 import { SkeletonCard, SkeletonChartCard, SkeletonTable } from '@/components/ui/skeleton-card';
+import { toast } from '@/components/ui/use-toast';
 
 // Fetch portfolio data
 async function fetchPortfolioData() {
@@ -184,6 +185,44 @@ export default function PortfolioPage() {
         isOpen={isAddAssetOpen}
         onClose={() => setIsAddAssetOpen(false)}
         mode="add"
+        onSubmit={async (formData) => {
+          try {
+            // Convert string values to numbers and ensure proper date format
+            const data = {
+              ...formData,
+              quantity: Number(formData.quantity),
+              purchasePrice: Number(formData.purchasePrice),
+              purchaseDate: new Date(formData.purchaseDate).toISOString(),
+              type: formData.type.toLowerCase(),
+              notes: formData.notes || ''
+            };
+
+            const response = await fetch('/api/portfolio/assets', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.error || 'Failed to add asset');
+            }
+
+            await refetch();
+            setIsAddAssetOpen(false);
+            toast({
+              title: 'Success',
+              description: 'Asset added successfully',
+            });
+          } catch (error) {
+            console.error('Error:', error);
+            toast({
+              title: 'Error',
+              description: error instanceof Error ? error.message : 'Failed to add asset',
+              variant: 'destructive',
+            });
+          }
+        }}
       />
     </PageContainer>
   );

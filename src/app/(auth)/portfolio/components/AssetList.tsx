@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal, Edit, Trash, Bell } from 'lucide-react';
-import { AssetForm } from './AssetForm';
+import { AssetForm } from '@/components/AssetForm';
 import { PriceAlerts } from './PriceAlerts';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/use-toast';
@@ -112,6 +112,34 @@ export function AssetList({ assets }: AssetListProps) {
         onClose={() => setEditingAsset(null)}
         initialData={editingAsset}
         mode="edit"
+        onSubmit={async (formData) => {
+          try {
+            const response = await fetch(`/api/portfolio/assets/${editingAsset.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(formData),
+            });
+
+            if (!response.ok) {
+              const error = await response.json();
+              throw new Error(error.error || 'Failed to update asset');
+            }
+
+            await refetch();
+            setEditingAsset(null);
+            toast({
+              title: 'Success',
+              description: 'Asset updated successfully',
+            });
+          } catch (error) {
+            console.error('Error:', error);
+            toast({
+              title: 'Error',
+              description: error instanceof Error ? error.message : 'Failed to update asset',
+              variant: 'destructive',
+            });
+          }
+        }}
       />
 
       <Dialog open={!!selectedAssetForAlert} onOpenChange={() => setSelectedAssetForAlert(null)}>

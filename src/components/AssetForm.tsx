@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,23 +13,36 @@ import { format } from 'date-fns';
 import { Loader2 } from 'lucide-react';
 
 const assetSchema = z.object({
-  symbol: z.string().min(1, 'Symbol is required'),
+  symbol: z.string().min(1, 'Symbol is required').toUpperCase(),
   type: z.enum(['crypto', 'stock'], {
     required_error: 'Asset type is required',
   }),
-  quantity: z.number({
-    required_error: 'Quantity is required',
-    invalid_type_error: 'Quantity must be a number',
-  }).positive('Quantity must be positive'),
-  purchasePrice: z.number({
-    required_error: 'Purchase price is required',
-    invalid_type_error: 'Purchase price must be a number',
-  }).positive('Purchase price must be positive'),
+  quantity: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number({
+      required_error: 'Quantity is required',
+      invalid_type_error: 'Quantity must be a number',
+    })
+      .positive('Quantity must be positive')
+      .finite('Quantity must be finite')
+  ),
+  purchasePrice: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number({
+      required_error: 'Purchase price is required',
+      invalid_type_error: 'Purchase price must be a number',
+    })
+      .positive('Purchase price must be positive')
+      .finite('Purchase price must be finite')
+  ),
   purchaseDate: z.string()
-    .refine((date) => !isNaN(Date.parse(date)), {
-      message: 'Invalid date format',
+    .refine((date) => {
+      const parsedDate = new Date(date);
+      return !isNaN(parsedDate.getTime()) && parsedDate <= new Date();
+    }, {
+      message: 'Invalid date or date is in the future',
     }),
-  notes: z.string().optional(),
+  notes: z.string().optional().default(''),
 });
 
 type AssetFormData = z.infer<typeof assetSchema>;
@@ -40,11 +53,21 @@ interface AssetFormProps {
   onSubmit: (data: AssetFormData) => Promise<void>;
   mode: 'add' | 'edit';
   initialData?: Partial<AssetFormData>;
+  refetch: () => Promise<any>;
 }
 
-export function AssetForm({ isOpen, onClose, onSubmit, mode, initialData }: AssetFormProps) {
+export function AssetForm({ isOpen, onClose, onSubmit, mode, initialData, refetch }: AssetFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  console.log('AssetForm rendered:', { isOpen, mode, initialData });
+  
+  const defaultValues = useMemo(() => ({
+    type: 'crypto' as const,
+    symbol: '',
+    quantity: undefined as number | undefined,
+    purchasePrice: undefined as number | undefined,
+    purchaseDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+    notes: '',
+    ...initialData,
+  }), [initialData]);
 
   const {
     register,
@@ -55,34 +78,48 @@ export function AssetForm({ isOpen, onClose, onSubmit, mode, initialData }: Asse
     setValue,
   } = useForm<AssetFormData>({
     resolver: zodResolver(assetSchema),
-    defaultValues: {
-      type: 'crypto',
-      purchaseDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
-      ...initialData,
-    },
+    defaultValues,
   });
+
+  // Reset form when dialog opens/closes or mode changes
+  useEffect(() => {
+    if (isOpen) {
+      reset(defaultValues);
+    }
+  }, [isOpen, mode, defaultValues, reset]);
 
   const onSubmitForm = async (data: AssetFormData) => {
     try {
-      console.log('Form submitted with data:', data);
       setIsSubmitting(true);
-      // Ensure the date is in ISO format
+      // Format the data before submission
       const formattedData = {
         ...data,
+        symbol: data.symbol.toUpperCase(),
+        quantity: Number(data.quantity),
+        purchasePrice: Number(data.purchasePrice),
         purchaseDate: new Date(data.purchaseDate).toISOString(),
+        notes: data.notes || '',
       };
+
+      // Validate the date is not in the future
+      const purchaseDate = new Date(formattedData.purchaseDate);
+      if (purchaseDate > new Date()) {
+        throw new Error('Purchase date cannot be in the future');
+      }
+
       await onSubmit(formattedData);
-      reset();
+      await refetch(); // Wait for refetch to complete
       onClose();
     } catch (error) {
       console.error('Form submission error:', error);
+      // You might want to show an error message to the user here
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open: boolean) => !open && onClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{mode === 'add' ? 'Add New Asset' : 'Edit Asset'}</DialogTitle>
@@ -93,8 +130,8 @@ export function AssetForm({ isOpen, onClose, onSubmit, mode, initialData }: Asse
             <div>
               <Label>Asset Type</Label>
               <RadioGroup
-                defaultValue={watch('type')}
-                onValueChange={(value) => setValue('type', value as 'crypto' | 'stock')}
+                value={watch('type')}
+                onValueChange={(value: 'crypto' | 'stock') => setValue('type', value)}
                 className="flex gap-4 mt-2"
               >
                 <div className="flex items-center space-x-2">
@@ -160,7 +197,6 @@ export function AssetForm({ isOpen, onClose, onSubmit, mode, initialData }: Asse
                 id="purchaseDate"
                 type="datetime-local"
                 {...register('purchaseDate')}
-                defaultValue={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
                 className="mt-1"
               />
               {errors.purchaseDate && (

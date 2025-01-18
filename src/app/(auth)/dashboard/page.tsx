@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -21,21 +21,19 @@ interface AllocationItem {
 	percentage: number;
 }
 
-async function fetchPortfolio() {
-	const response = await fetch('/api/portfolio/assets');
-	if (!response.ok) {
-		throw new Error('Failed to fetch portfolio');
-	}
-	return response.json();
-}
-
 export default function DashboardPage() {
 	const [isAddAssetOpen, setIsAddAssetOpen] = useState(false);
 	const [editingAsset, setEditingAsset] = useState<any>(null);
 	
 	const { data: portfolio, isLoading, error, refetch } = useQuery({
 		queryKey: ['portfolio'],
-		queryFn: fetchPortfolio,
+		queryFn: async () => {
+			const response = await fetch('/api/portfolio/assets');
+			if (!response.ok) {
+				throw new Error('Failed to fetch portfolio');
+			}
+			return response.json();
+		},
 		refetchInterval: 60000, // Refetch every minute
 	});
 
@@ -139,7 +137,7 @@ export default function DashboardPage() {
 					</div>
 
 					{/* Portfolio Summary */}
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 						<CardContainer>
 							<CardBody>
 								<CardItem>
@@ -190,20 +188,6 @@ export default function DashboardPage() {
 										</div>
 										<Percent className="h-8 w-8 text-primary" />
 									</div>
-								</CardItem>
-							</CardBody>
-						</CardContainer>
-
-						<CardContainer>
-							<CardBody>
-								<CardItem>
-									<Button
-										onClick={() => setIsAddAssetOpen(true)}
-										className="w-full h-full flex items-center justify-center"
-									>
-										<Plus className="mr-2 h-4 w-4" />
-										Add New Asset
-									</Button>
 								</CardItem>
 							</CardBody>
 						</CardContainer>
@@ -300,23 +284,36 @@ export default function DashboardPage() {
 					setIsAddAssetOpen(false);
 					setEditingAsset(null);
 				}}
+				mode={editingAsset ? 'edit' : 'add'}
+				initialData={editingAsset}
 				onSubmit={async (formData) => {
 					try {
-						if (editingAsset) {
-							const response = await fetch(`/api/assets/${editingAsset.id}`, {
-								method: 'PATCH',
-								headers: { 'Content-Type': 'application/json' },
-								body: JSON.stringify(formData),
-							});
-							if (!response.ok) throw new Error('Failed to update asset');
-						} else {
-							const response = await fetch('/api/assets/add', {
-								method: 'POST',
-								headers: { 'Content-Type': 'application/json' },
-								body: JSON.stringify(formData),
-							});
-							if (!response.ok) throw new Error('Failed to add asset');
+						const endpoint = editingAsset 
+							? `/api/portfolio/assets/${editingAsset.id}` 
+							: '/api/portfolio/assets';
+						const method = editingAsset ? 'PUT' : 'POST';
+
+						// Convert string values to numbers and ensure proper date format
+						const data = {
+							...formData,
+							quantity: Number(formData.quantity),
+							purchasePrice: Number(formData.purchasePrice),
+							purchaseDate: new Date(formData.purchaseDate).toISOString(),
+							type: formData.type.toLowerCase(),
+							notes: formData.notes || ''
+						};
+
+						const response = await fetch(endpoint, {
+							method,
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify(data),
+						});
+
+						if (!response.ok) {
+							const errorData = await response.json();
+							throw new Error(errorData.error || 'Failed to save asset');
 						}
+
 						await refetch();
 						setIsAddAssetOpen(false);
 						setEditingAsset(null);
@@ -333,8 +330,7 @@ export default function DashboardPage() {
 						});
 					}
 				}}
-				mode={editingAsset ? 'edit' : 'add'}
-				initialData={editingAsset}
+				refetch={refetch}
 			/>
 		</PageContainer>
 	);

@@ -3,6 +3,57 @@ import { auth } from '@clerk/nextjs';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { updateAssetPrices } from '@/lib/price-service';
+import { Prisma } from '.prisma/client';
+
+type Asset = {
+  id: string;
+  symbol: string;
+  type: 'crypto' | 'stock';
+  quantity: number;
+  purchasePrice: number;
+  purchaseDate: Date;
+  notes?: string;
+  portfolioId: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type Transaction = {
+  id: string;
+  type: 'BUY' | 'SELL';
+  quantity: number;
+  price: number;
+  date: Date;
+  assetId: string;
+  portfolioId: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+interface AssetWithTransactions extends Asset {
+  transactions: Transaction[];
+}
+
+interface AssetMetrics {
+  totalInvested: number;
+  currentValue: number;
+  gainLoss: number;
+  gainLossPercentage: number;
+  currentPrice: number;
+  priceChange24h?: number;
+}
+
+interface AssetWithMetrics extends Asset {
+  transactions: Transaction[];
+  metrics: AssetMetrics;
+}
+
+interface AssetAllocation {
+  symbol: string;
+  type: string;
+  value: number;
+  percentage: number;
+}
 
 const assetSchema = z.object({
   symbol: z.string().min(1),
@@ -94,7 +145,7 @@ export async function GET() {
 
     // Fetch real-time prices for all assets
     const priceUpdates = await updateAssetPrices(
-      portfolio.assets.map(asset => ({
+      portfolio.assets.map((asset: Asset) => ({
         symbol: asset.symbol,
         type: asset.type,
       }))
@@ -106,7 +157,7 @@ export async function GET() {
     );
 
     // Calculate additional metrics for each asset
-    const assetsWithMetrics = portfolio.assets.map(asset => {
+    const assetsWithMetrics = portfolio.assets.map((asset: Asset) => {
       const totalInvested = asset.quantity * asset.purchasePrice;
       const priceData = currentPrices.get(asset.symbol);
       const currentPrice = priceData?.price ?? asset.purchasePrice;
@@ -124,17 +175,17 @@ export async function GET() {
           currentPrice,
           priceChange24h: priceData?.priceChange24h,
         },
-      };
+      } as AssetWithMetrics;
     });
 
     // Calculate portfolio summary
-    const totalValue = assetsWithMetrics.reduce((sum, asset) => sum + asset.metrics.currentValue, 0);
-    const totalInvested = assetsWithMetrics.reduce((sum, asset) => sum + asset.metrics.totalInvested, 0);
+    const totalValue = assetsWithMetrics.reduce((sum: number, asset: AssetWithMetrics) => sum + asset.metrics.currentValue, 0);
+    const totalInvested = assetsWithMetrics.reduce((sum: number, asset: AssetWithMetrics) => sum + asset.metrics.totalInvested, 0);
     const totalGainLoss = totalValue - totalInvested;
     const totalGainLossPercentage = ((totalValue - totalInvested) / totalInvested) * 100;
 
     // Calculate asset allocation
-    const allocation = assetsWithMetrics.map(asset => ({
+    const allocation = assetsWithMetrics.map((asset: AssetWithMetrics): AssetAllocation => ({
       symbol: asset.symbol,
       type: asset.type,
       value: asset.metrics.currentValue,
