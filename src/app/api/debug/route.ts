@@ -5,6 +5,9 @@ import { prisma } from '@/lib/prisma';
 // Use Node.js runtime for Prisma compatibility
 export const runtime = 'nodejs';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const { userId } = auth();

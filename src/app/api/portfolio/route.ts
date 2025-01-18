@@ -6,6 +6,9 @@ import { updateAssetPrices } from '@/lib/price-service';
 // Use Node.js runtime for Prisma compatibility
 export const runtime = 'nodejs';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 type AssetType = 'crypto' | 'stock';
 type TransactionType = 'BUY' | 'SELL';
 
