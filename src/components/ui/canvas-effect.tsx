@@ -14,6 +14,7 @@ export function CanvasRevealEffect() {
 
     // Set canvas size
     const updateSize = () => {
+      if (!canvas) return;
       const rect = canvas.parentElement?.getBoundingClientRect();
       if (rect) {
         canvas.width = rect.width;
@@ -31,6 +32,7 @@ export function CanvasRevealEffect() {
 
     // Animation function
     function animate() {
+      if (!ctx || !canvas) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);

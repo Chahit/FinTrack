@@ -4,11 +4,13 @@ import { marketData } from './market-data';
 export interface Asset {
   id: string;
   symbol: string;
-  name: string;
+  name?: string;
   quantity: number;
   currentPrice: number;
-  costBasis: number;
+  purchasePrice: number;
   type: string;
+  notes?: string;
+  purchaseDate: Date;
 }
 
 // Raw market data from the API
@@ -101,20 +103,34 @@ export async function getPortfolioData(userId: string): Promise<PortfolioData> {
 
   // Get current prices for all assets
   const assetsWithPrices = await Promise.all(
-    portfolio.assets.map(async (asset: Asset) => {
+    portfolio.assets.map(async (prismaAsset) => {
       try {
-        const rawQuote = await marketData.getQuote(asset.symbol);
+        const rawQuote = await marketData.getQuote(prismaAsset.symbol);
         const quote = normalizeMarketData(rawQuote);
-        return {
-          ...asset,
-          currentPrice: quote.currentPrice || asset.costBasis,
+        const asset: Asset = {
+          id: prismaAsset.id,
+          symbol: prismaAsset.symbol,
+          quantity: prismaAsset.quantity,
+          currentPrice: quote.currentPrice || prismaAsset.purchasePrice,
+          purchasePrice: prismaAsset.purchasePrice,
+          type: prismaAsset.type,
+          notes: prismaAsset.notes || undefined,
+          purchaseDate: prismaAsset.purchaseDate
         };
+        return asset;
       } catch (error) {
-        console.error(`Error fetching quote for ${asset.symbol}:`, error);
-        return {
-          ...asset,
-          currentPrice: asset.costBasis,
+        console.error(`Error fetching quote for ${prismaAsset.symbol}:`, error);
+        const asset: Asset = {
+          id: prismaAsset.id,
+          symbol: prismaAsset.symbol,
+          quantity: prismaAsset.quantity,
+          currentPrice: prismaAsset.purchasePrice,
+          purchasePrice: prismaAsset.purchasePrice,
+          type: prismaAsset.type,
+          notes: prismaAsset.notes || undefined,
+          purchaseDate: prismaAsset.purchaseDate
         };
+        return asset;
       }
     })
   );
@@ -125,7 +141,7 @@ export async function getPortfolioData(userId: string): Promise<PortfolioData> {
   );
 
   const totalCost = assetsWithPrices.reduce(
-    (sum, asset) => sum + asset.quantity * asset.costBasis,
+    (sum, asset) => sum + asset.quantity * asset.purchasePrice,
     0
   );
 

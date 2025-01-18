@@ -2,7 +2,7 @@
 .env
 .env.local
 .env.*.local
-
+.env.production
 # dependencies
 /node_modules
 /.pnp
