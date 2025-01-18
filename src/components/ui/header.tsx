@@ -13,7 +13,7 @@ import { Menu, MoveRight, X } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
-import { ModeToggle } from "./theme-toggle";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { RainbowButton } from "@/components/ui/rainbow-button";
 
 export function Header1() {
@@ -129,7 +129,7 @@ export function Header1() {
                     <Link href="/" className="font-semibold text-xl">FinTrack</Link>
                 </div>
                 <div className="flex justify-end w-full gap-4 items-center">
-                    <ModeToggle />
+                    <ThemeToggle />
                     <UserButton afterSignOutUrl="/" />
                 </div>
                 <div className="flex w-12 shrink lg:hidden items-end justify-end">

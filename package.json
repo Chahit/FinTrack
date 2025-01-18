@@ -45,6 +45,7 @@
     "@tsparticles/react": "^3.0.0",
     "@tsparticles/slim": "^3.7.1",
     "@types/d3": "^7.4.3",
+    "@types/web-push": "^3.6.4",
     "@types/ws": "^8.5.10",
     "axios": "^1.7.9",
     "bcrypt": "^5.1.1",
@@ -73,6 +74,7 @@
     "tsparticles": "^3.7.1",
     "tsparticles-slim": "^2.12.0",
     "uuid": "^11.0.5",
+    "web-push": "^3.6.7",
     "ws": "^8.16.0",
     "zod": "^3.24.1"
   },
