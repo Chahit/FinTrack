@@ -2,46 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs';
 import { prisma } from '@/lib/prisma';
 import { updateAssetPrices } from '@/lib/price-service';
-
-type AssetType = 'crypto' | 'stock';
-type TransactionType = 'BUY' | 'SELL';
-
-interface PrismaAsset {
-  id: string;
-  symbol: string;
-  type: string;
-  quantity: number;
-  purchasePrice: number;
-  purchaseDate: Date;
-  notes: string | null;
-  portfolioId: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface PrismaTransaction {
-  id: string;
-  type: string;
-  quantity: number;
-  price: number;
-  date: Date;
-  assetId: string;
-  portfolioId: string;
-  notes: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface Asset extends Omit<PrismaAsset, 'type'> {
-  type: AssetType;
-}
-
-interface Transaction extends Omit<PrismaTransaction, 'type'> {
-  type: TransactionType;
-}
+import { Asset, Portfolio } from '@prisma/client';
 
 interface AssetWithTransactions extends Asset {
-  transactions: Transaction[];
+  transactions: Array<{
+    id: string;
+    quantity: number;
+    price: number;
+    type: string;
+    date: Date;
+  }>;
+}
+
+interface PortfolioWithAssets extends Portfolio {
+  assets: AssetWithTransactions[];
 }
 
 interface AssetMetrics {
@@ -53,16 +27,8 @@ interface AssetMetrics {
   priceChange24h?: number;
 }
 
-interface AssetWithMetrics extends Asset {
-  transactions: Transaction[];
+interface AssetWithMetrics extends AssetWithTransactions {
   metrics: AssetMetrics;
-}
-
-interface AssetAllocation {
-  symbol: string;
-  type: string;
-  value: number;
-  percentage: number;
 }
 
 export async function GET(req: NextRequest) {
@@ -72,7 +38,27 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const portfolio = await prisma.portfolio.findUnique({
+    // First check if user exists, if not create them
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { portfolio: true }
+    });
+
+    if (!user) {
+      // Create user and portfolio
+      await prisma.user.create({
+        data: {
+          id: userId,
+          email: 'user@example.com',
+          portfolio: {
+            create: {}
+          }
+        }
+      });
+    }
+
+    // Now get or create portfolio
+    let portfolio = await prisma.portfolio.findUnique({
       where: { userId },
       include: {
         assets: {
@@ -81,34 +67,34 @@ export async function GET(req: NextRequest) {
           },
         },
       },
-    });
+    }) as PortfolioWithAssets | null;
 
     if (!portfolio) {
-      return NextResponse.json({ assets: [] });
+      portfolio = await prisma.portfolio.create({
+        data: { userId },
+        include: {
+          assets: {
+            include: {
+              transactions: true,
+            },
+          },
+        },
+      }) as PortfolioWithAssets;
     }
 
-    // Fetch real-time prices for all assets
     const priceUpdates = await updateAssetPrices(
-      portfolio.assets.map((asset: PrismaAsset) => ({
+      portfolio.assets.map((asset) => ({
         symbol: asset.symbol,
-        type: asset.type as AssetType,
+        type: asset.type as 'crypto' | 'stock',
       }))
     );
 
-    // Create a map of current prices
     const currentPrices = new Map(
       priceUpdates.map(update => [update.symbol, update])
     );
 
-    // Calculate additional metrics for each asset
-    const assetsWithMetrics = await Promise.all(
-      portfolio.assets.map(async (prismaAsset: PrismaAsset & { transactions: PrismaTransaction[] }) => {
-        const asset = {
-          ...prismaAsset,
-          type: prismaAsset.type as AssetType,
-          transactions: prismaAsset.transactions.map(t => ({ ...t, type: t.type as TransactionType })),
-        };
-
+    const assetsWithMetrics: AssetWithMetrics[] = await Promise.all(
+      portfolio.assets.map(async (asset: AssetWithTransactions) => {
         const totalInvested = asset.quantity * asset.purchasePrice;
         const priceData = currentPrices.get(asset.symbol);
         const currentPrice = priceData?.price ?? asset.purchasePrice;
@@ -126,25 +112,23 @@ export async function GET(req: NextRequest) {
             currentPrice,
             priceChange24h: priceData?.priceChange24h,
           },
-        } as AssetWithMetrics;
+        };
       })
     );
 
-    // Calculate portfolio summary
-    const totalValue = assetsWithMetrics.reduce((sum, asset) => sum + asset.metrics.currentValue, 0);
-    const totalInvested = assetsWithMetrics.reduce((sum, asset) => sum + asset.metrics.totalInvested, 0);
+    const totalValue = assetsWithMetrics.reduce((sum: number, asset: AssetWithMetrics) => sum + asset.metrics.currentValue, 0);
+    const totalInvested = assetsWithMetrics.reduce((sum: number, asset: AssetWithMetrics) => sum + asset.metrics.totalInvested, 0);
     const totalGainLoss = totalValue - totalInvested;
-    const totalGainLossPercentage = ((totalValue - totalInvested) / totalInvested) * 100;
+    const totalGainLossPercentage = totalInvested > 0 ? (totalGainLoss / totalInvested) * 100 : 0;
 
-    // Calculate asset allocation
-    const allocation = assetsWithMetrics.map((asset): AssetAllocation => ({
+    const allocation = assetsWithMetrics.map((asset: AssetWithMetrics) => ({
       symbol: asset.symbol,
       type: asset.type,
       value: asset.metrics.currentValue,
-      percentage: (asset.metrics.currentValue / totalValue) * 100,
+      percentage: totalValue > 0 ? (asset.metrics.currentValue / totalValue) * 100 : 0,
     }));
 
-    const response = {
+    return NextResponse.json({
       assets: assetsWithMetrics,
       summary: {
         totalAssets: assetsWithMetrics.length,
@@ -154,10 +138,7 @@ export async function GET(req: NextRequest) {
         totalGainLossPercentage,
       },
       allocation,
-    };
-
-    console.log('API Response:', JSON.stringify(response, null, 2));
-    return NextResponse.json(response);
+    });
   } catch (error) {
     console.error('Failed to fetch portfolio assets:', error);
     return NextResponse.json(

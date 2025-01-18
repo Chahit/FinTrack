@@ -35,16 +35,45 @@ const CRYPTO_ID_MAP: Record<string, string> = {
   'ATOM': 'cosmos',
   'XLM': 'stellar',
   'BCH': 'bitcoin-cash',
-  // Add more mappings as needed
 };
+
+// Add rate limiting
+let lastCryptoRequest = 0;
+const RATE_LIMIT_DELAY = 1100; // 1.1 seconds between requests
+
+async function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 async function getCryptoPrice(symbol: string): Promise<{ price: number; priceChange24h: number }> {
   try {
-    console.log(`Fetching crypto price for ${symbol} using CoinGecko API...`);
+    // Implement rate limiting
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastCryptoRequest;
+    if (timeSinceLastRequest < RATE_LIMIT_DELAY) {
+      await delay(RATE_LIMIT_DELAY - timeSinceLastRequest);
+    }
+    lastCryptoRequest = Date.now();
+
     const coinId = CRYPTO_ID_MAP[symbol.toUpperCase()] || symbol.toLowerCase();
+    console.log(`Fetching crypto price for ${symbol} (${coinId}) using CoinGecko API...`);
+
     const response = await fetch(
-      `${COINGECKO_API_BASE}/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true`
+      `${COINGECKO_API_BASE}/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true`,
+      {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'FinTrack Portfolio Tracker'
+        }
+      }
     );
+
+    // Handle rate limiting response
+    if (response.status === 429) {
+      console.log('Rate limit hit, waiting before retry...');
+      await delay(5000); // Wait 5 seconds before retry
+      return getCryptoPrice(symbol);
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -53,15 +82,23 @@ async function getCryptoPrice(symbol: string): Promise<{ price: number; priceCha
         statusText: response.statusText,
         error: errorText
       });
-      throw new Error('Failed to fetch crypto price');
+      
+      // Return last known price or default values instead of throwing
+      return {
+        price: 0,
+        priceChange24h: 0
+      };
     }
 
     const data = await response.json();
     console.log(`Received data for ${symbol}:`, data);
 
-    if (!data[coinId]) {
-      console.error(`No data found for ${symbol}:`, data);
-      throw new Error(`No data found for crypto symbol: ${symbol}`);
+    if (!data[coinId] || !data[coinId].usd) {
+      console.error(`No price data found for ${symbol} (${coinId}):`, data);
+      return {
+        price: 0,
+        priceChange24h: 0
+      };
     }
 
     return {
@@ -70,7 +107,11 @@ async function getCryptoPrice(symbol: string): Promise<{ price: number; priceCha
     };
   } catch (error) {
     console.error(`Error fetching crypto price for ${symbol}:`, error);
-    throw error;
+    // Return default values instead of throwing
+    return {
+      price: 0,
+      priceChange24h: 0
+    };
   }
 }
 

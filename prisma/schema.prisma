@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,54 +9,54 @@ datasource db {
 }
 
 model User {
-  id        String     @id @default(cuid())
-  email     String     @unique
-  portfolio Portfolio?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id        String            @id @default(cuid())
+  email     String            @unique
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
   groups    ChatGroupMember[]
   messages  ChatMessage[]
+  portfolio Portfolio?
 }
 
 model Portfolio {
-  id          String        @id @default(cuid())
-  userId      String        @unique
-  user        User          @relation(fields: [userId], references: [id])
-  assets      Asset[]
+  id           String        @id @default(cuid())
+  userId       String        @unique
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  assets       Asset[]
+  user         User          @relation(fields: [userId], references: [id])
   transactions Transaction[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
 }
 
 model Asset {
-  id           String        @id @default(cuid())
-  portfolioId  String
-  portfolio    Portfolio     @relation(fields: [portfolioId], references: [id])
-  symbol       String
-  type         String        // 'crypto' or 'stock'
-  quantity     Float
+  id            String        @id @default(cuid())
+  portfolioId   String
+  symbol        String
+  quantity      Float
   purchasePrice Float
-  purchaseDate DateTime
-  notes        String?
-  transactions Transaction[]
-  priceAlerts  PriceAlert[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  type          String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  notes         String?
+  purchaseDate  DateTime
+  portfolio     Portfolio     @relation(fields: [portfolioId], references: [id])
+  priceAlerts   PriceAlert[]
+  transactions  Transaction[]
 }
 
 model Transaction {
   id          String    @id @default(cuid())
   assetId     String
-  asset       Asset     @relation(fields: [assetId], references: [id])
-  portfolioId String
-  portfolio   Portfolio @relation(fields: [portfolioId], references: [id])
-  type        String    // 'BUY' or 'SELL'
+  type        String
   quantity    Float
   price       Float
   date        DateTime
   notes       String?
   createdAt   DateTime  @default(now())
+  portfolioId String
   updatedAt   DateTime  @updatedAt
+  asset       Asset     @relation(fields: [assetId], references: [id])
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id])
 }
 
 model PriceAlert {
@@ -94,43 +91,41 @@ model PushSubscription {
 }
 
 model UserSettings {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  theme     String   @default("light")
-  currency  String   @default("USD")
-  timeZone  String   @default("UTC")
-  
-  notifications Json @default("{\"priceAlerts\":true,\"newsDigest\":true,\"portfolioUpdates\":true,\"securityAlerts\":true}")
-  portfolio     Json @default("{\"autoRefresh\":true,\"showDistribution\":true}")
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  theme         String   @default("light")
+  currency      String   @default("USD")
+  timeZone      String   @default("UTC")
+  notifications Json     @default("{\"newsDigest\": true, \"priceAlerts\": true, \"securityAlerts\": true, \"portfolioUpdates\": true}")
+  portfolio     Json     @default("{\"autoRefresh\": true, \"showDistribution\": true}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([userId])
 }
 
 model ChatMessage {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  groupId   String?
-  group     ChatGroup? @relation(fields: [groupId], references: [id])
   content   String
-  username  String   // Display name for the message
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  groupId   String?
+  username  String
+  group     ChatGroup? @relation(fields: [groupId], references: [id])
+  user      User       @relation(fields: [userId], references: [id])
 
   @@index([createdAt])
   @@index([groupId])
 }
 
 model ChatGroup {
-  id         String   @id @default(cuid())
+  id         String            @id @default(cuid())
   name       String
-  inviteCode String   @unique
+  inviteCode String            @unique
   createdBy  String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
   members    ChatGroupMember[]
   messages   ChatMessage[]
 
@@ -138,12 +133,12 @@ model ChatGroup {
 }
 
 model ChatGroupMember {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id])
-  groupId   String
-  group     ChatGroup @relation(fields: [groupId], references: [id])
-  joinedAt  DateTime  @default(now())
+  id       String    @id @default(cuid())
+  userId   String
+  groupId  String
+  joinedAt DateTime  @default(now())
+  group    ChatGroup @relation(fields: [groupId], references: [id])
+  user     User      @relation(fields: [userId], references: [id])
 
   @@unique([userId, groupId])
   @@index([groupId])
