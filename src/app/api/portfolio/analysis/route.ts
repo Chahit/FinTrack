@@ -20,7 +20,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Portfolio not found' }, { status: 404 });
     }
 
-    const analysis = await calculatePortfolioAnalysis(portfolio.assets);
+    // Transform Prisma assets to our Asset interface
+    const transformedAssets = await Promise.all(portfolio.assets.map(async (asset) => {
+      const quote = await marketData.getQuote(asset.symbol);
+      return {
+        id: asset.id,
+        symbol: asset.symbol,
+        name: asset.symbol, // We could fetch the company name from market data if needed
+        quantity: asset.quantity,
+        currentPrice: quote.price,
+        costBasis: asset.purchasePrice,
+        type: asset.type,
+      } as Asset;
+    }));
+
+    const analysis = await calculatePortfolioAnalysis(transformedAssets);
     return NextResponse.json(analysis);
   } catch (error) {
     console.error('Error in portfolio analysis:', error);

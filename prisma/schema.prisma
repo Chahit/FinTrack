@@ -17,6 +17,7 @@ model User {
   groups    ChatGroupMember[]
   messages  ChatMessage[]
   portfolio Portfolio?
+  searches  Search[]
 }
 
 model Portfolio {
@@ -143,4 +144,32 @@ model ChatGroupMember {
 
   @@unique([userId, groupId])
   @@index([groupId])
+}
+
+model Search {
+  id        String   @id @default(cuid())
+  userId    String
+  symbol    String
+  type      String
+  timestamp DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([timestamp])
+}
+
+model News {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  url       String
+  source    String
+  symbols   String[]
+  sentiment String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+  @@index([symbols])
 }

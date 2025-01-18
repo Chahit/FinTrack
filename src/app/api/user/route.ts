@@ -13,8 +13,9 @@ export async function GET(request: Request) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
-        portfolios: true,
-        alerts: true
+        portfolio: true,
+        groups: true,
+        messages: true
       }
     });
 
@@ -24,12 +25,12 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       id: user.id,
-      name: user.name,
       email: user.email,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
-      portfolios: user.portfolios,
-      alerts: user.alerts
+      portfolio: user.portfolio,
+      groups: user.groups,
+      messages: user.messages
     });
   } catch (error) {
     console.error('GET user error:', error);
@@ -45,7 +46,6 @@ export async function PUT(request: Request) {
 
   try {
     const updateSchema = z.object({
-      name: z.string().optional(),
       email: z.string().email().optional(),
     });
 
@@ -56,19 +56,20 @@ export async function PUT(request: Request) {
       where: { id: userId },
       data: validatedData,
       include: {
-        portfolios: true,
-        alerts: true
+        portfolio: true,
+        groups: true,
+        messages: true
       }
     });
 
     return NextResponse.json({
       id: updatedUser.id,
-      name: updatedUser.name,
       email: updatedUser.email,
       createdAt: updatedUser.createdAt,
       updatedAt: updatedUser.updatedAt,
-      portfolios: updatedUser.portfolios,
-      alerts: updatedUser.alerts
+      portfolio: updatedUser.portfolio,
+      groups: updatedUser.groups,
+      messages: updatedUser.messages
     });
   } catch (error) {
     console.error('PUT user error:', error);

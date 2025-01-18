@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
+import { auth } from '@clerk/nextjs';
 import { prisma } from '@/lib/prisma';
 import { marketData } from '@/lib/market-data';
 import { withRateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = getAuth(req);
+    const { userId } = auth();
     if (!userId) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = getAuth(req);
+    const { userId } = auth();
     if (!userId) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const { userId } = getAuth(req);
+    const { userId } = auth();
     if (!userId) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }

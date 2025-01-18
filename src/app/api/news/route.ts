@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs';
 import { config } from '@/lib/config';
+import { prisma } from '@/lib/prisma';
 
 const FINNHUB_API_BASE = 'https://finnhub.io/api/v1';
 const COINGECKO_NEWS_API = 'https://api.coingecko.com/api/v3/news';
@@ -62,12 +63,16 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = getAuth(req);
+    const { userId } = auth();
     if (!userId) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const { title, content, url, source, symbols, sentiment } = await req.json();
+
+    if (!prisma) {
+      throw new Error('Prisma client is not initialized');
+    }
 
     const news = await prisma.news.create({
       data: {

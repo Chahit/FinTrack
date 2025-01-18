@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
+import { auth } from '@clerk/nextjs';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = getAuth(req);
+    const { userId } = auth();
     if (!userId) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const { userId } = getAuth(req);
+    const { userId } = auth();
     if (!userId) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
@@ -63,7 +63,7 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const { userId } = getAuth(req);
+    const { userId } = auth();
     if (!userId) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
@@ -75,10 +75,14 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ message: "Alert ID is required" }, { status: 400 });
     }
 
-    const alert = await prisma.alert.findFirst({
+    const alert = await prisma.priceAlert.findFirst({
       where: {
         id: alertId,
-        userId
+        asset: {
+          portfolio: {
+            userId
+          }
+        }
       }
     });
 
@@ -86,7 +90,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ message: "Alert not found" }, { status: 404 });
     }
 
-    await prisma.alert.delete({
+    await prisma.priceAlert.delete({
       where: { id: alertId }
     });
 

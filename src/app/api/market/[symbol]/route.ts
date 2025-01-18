@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const COINGECKO_IDS = {
+const COINGECKO_IDS: Record<string, string> = {
   'BTC': 'bitcoin',
   'ETH': 'ethereum',
   'BNB': 'binancecoin',
   'SOL': 'solana',
   'AVAX': 'avalanche-2',
   'ADA': 'cardano',
-};
+} as const;
 
 export async function GET(
   request: NextRequest,
@@ -15,7 +15,7 @@ export async function GET(
 ) {
   try {
     const { symbol } = params;
-    const coinId = COINGECKO_IDS[symbol];
+    const coinId = COINGECKO_IDS[symbol as keyof typeof COINGECKO_IDS];
     
     if (!coinId) {
       return NextResponse.json(

@@ -12,7 +12,7 @@ import { Plus, TrendingUp, TrendingDown, DollarSign, Percent, RefreshCcw } from 
 import { toast } from '@/components/ui/use-toast';
 import { SkeletonCard } from '@/components/ui/skeleton-card';
 import { InteractiveChart } from '@/components/ui/interactive-chart';
-import StockTicker from '@/components/StockTicker';
+import  StockTicker  from '@/components/StockTicker';
 import { MarketOverview } from '@/components/MarketOverview';
 import { FlatCard, FlatCardHeader, FlatCardContent } from '@/components/ui/flat-card';
 

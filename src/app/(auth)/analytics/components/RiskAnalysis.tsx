@@ -4,8 +4,20 @@ import { CardContainer, CardBody, CardItem } from '@/components/ui/3d-card';
 import { SparklesCore } from '@/components/ui/sparkles';
 import { InteractiveChart } from '@/components/ui/interactive-chart';
 
+interface AssetMetrics {
+  gainLossPercentage: number;
+}
+
+interface Asset {
+  metrics: AssetMetrics;
+}
+
+interface Portfolio {
+  assets: Asset[];
+}
+
 interface RiskAnalysisProps {
-  portfolio: any;
+  portfolio: Portfolio | null;
 }
 
 export function RiskAnalysis({ portfolio }: RiskAnalysisProps) {
@@ -19,11 +31,11 @@ export function RiskAnalysis({ portfolio }: RiskAnalysisProps) {
     const marketReturns = 8; // Assumed market return (S&P 500 average)
     const riskFreeRate = 2; // Assumed risk-free rate
 
-    const returns = assets.map(asset => asset.metrics.gainLossPercentage);
-    const avgReturn = returns.reduce((a, b) => a + b, 0) / returns.length;
+    const returns = assets.map((asset: Asset) => asset.metrics.gainLossPercentage);
+    const avgReturn = returns.reduce((acc: number, curr: number) => acc + curr, 0) / returns.length;
     
     // Calculate volatility (standard deviation of returns)
-    const variance = returns.reduce((a, b) => a + Math.pow(b - avgReturn, 2), 0) / returns.length;
+    const variance = returns.reduce((acc: number, curr: number) => acc + Math.pow(curr - avgReturn, 2), 0) / returns.length;
     const volatility = Math.sqrt(variance);
 
     // Calculate beta (using simplified calculation)
