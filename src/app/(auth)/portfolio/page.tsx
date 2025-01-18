@@ -9,7 +9,6 @@ import { Plus } from 'lucide-react';
 import { AssetList } from './components/AssetList';
 import { TransactionHistory } from '@/components/TransactionHistory';
 import { PriceAlerts } from '@/components/PriceAlerts';
-import { SparklesCore } from '@/components/ui/sparkles';
 import { SkeletonCard } from '@/components/ui/skeleton-card';
 import { FlatCard, FlatCardHeader, FlatCardContent } from '@/components/ui/flat-card';
 import { InteractiveChart } from '@/components/ui/interactive-chart';
@@ -83,16 +82,6 @@ export default function PortfolioPage() {
   return (
     <PageContainer>
       <div className="relative">
-        <SparklesCore
-          id="portfolio-sparkles"
-          background="transparent"
-          minSize={0.4}
-          maxSize={1}
-          particleDensity={30}
-          className="absolute top-0 left-0 w-full h-full opacity-50"
-          particleColor="hsl(var(--primary))"
-        />
-
         <div className="relative z-10 space-y-8">
           {/* Header */}
           <div className="flex justify-between items-center">

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { CardContainer, CardBody, CardItem } from '@/components/ui/3d-card';
-import { SparklesCore } from '@/components/ui/sparkles';
 import { InteractiveChart } from '@/components/ui/interactive-chart';
 
 interface HistoricalPerformanceProps {
@@ -34,15 +33,6 @@ export function HistoricalPerformance({ portfolio }: HistoricalPerformanceProps)
 
   return (
     <div className="relative">
-      <SparklesCore
-        id="historical-sparkles"
-        background="transparent"
-        minSize={0.4}
-        maxSize={1}
-        particleDensity={30}
-        className="absolute top-0 left-0 w-full h-full"
-        particleColor="hsl(var(--primary))"
-      />
       <div className="relative z-10">
         <h3 className="text-lg font-semibold mb-4">Portfolio Value Over Time</h3>
         <div className="h-[400px]">

@@ -7,7 +7,6 @@ import { PerformanceMetrics } from './components/PerformanceMetrics';
 import { RiskAnalysis } from './components/RiskAnalysis';
 import { TradingViewWidget } from './components/TradingViewWidget';
 import { HistoricalPerformance } from './components/HistoricalPerformance';
-import { SparklesCore } from '@/components/ui/sparkles';
 import { SkeletonCard } from '@/components/ui/skeleton-card';
 import { FlatCard, FlatCardHeader, FlatCardContent } from '@/components/ui/flat-card';
 import { BarChart, LineChart, TrendingUp } from 'lucide-react';
@@ -70,16 +69,6 @@ export default function AnalyticsPage() {
   return (
     <PageContainer>
       <div className="relative">
-        <SparklesCore
-          id="analytics-sparkles"
-          background="transparent"
-          minSize={0.4}
-          maxSize={1}
-          particleDensity={30}
-          className="absolute top-0 left-0 w-full h-full opacity-50"
-          particleColor="hsl(var(--primary))"
-        />
-
         <div className="relative z-10 space-y-8">
           {/* Header */}
           <div className="flex justify-between items-center">

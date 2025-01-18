@@ -9,7 +9,6 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FlatCard, FlatCardHeader, FlatCardContent } from '@/components/ui/flat-card';
-import { SparklesCore } from '@/components/ui/sparkles';
 import { toast } from '@/components/ui/use-toast';
 import { Save, RefreshCw } from 'lucide-react';
 
@@ -34,16 +33,6 @@ export default function SettingsPage() {
   return (
     <PageContainer>
       <div className="relative">
-        <SparklesCore
-          id="settings-sparkles"
-          background="transparent"
-          minSize={0.4}
-          maxSize={1}
-          particleDensity={30}
-          className="absolute top-0 left-0 w-full h-full opacity-50"
-          particleColor="hsl(var(--primary))"
-        />
-
         <div className="relative z-10 space-y-8">
           {/* Header */}
           <div className="flex justify-between items-center">

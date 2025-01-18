@@ -8,7 +8,6 @@ import { PortfolioNewsFeed } from './components/PortfolioNewsFeed';
 import { MarketNewsFeed } from './components/MarketNewsFeed';
 import { NewsAnalysis } from './components/NewsAnalysis';
 import { CardContainer, CardBody, CardItem } from '@/components/ui/3d-card';
-import { SparklesCore } from '@/components/ui/sparkles';
 import { SkeletonCard } from '@/components/ui/skeleton-card';
 
 async function fetchPortfolioSymbols() {
@@ -62,58 +61,31 @@ export default function NewsPage() {
   return (
     <PageContainer>
       <div className="relative">
-        <SparklesCore
-          id="news-sparkles"
-          background="transparent"
-          minSize={0.4}
-          maxSize={1}
-          particleDensity={70}
-          className="absolute top-0 left-0 w-full h-full"
-          particleColor="hsl(var(--primary))"
-        />
-        
-        <div className="relative z-10">
-          {/* Header */}
-          <div className="mb-6">
-            <CardContainer className="max-w-3xl">
-              <CardBody>
-                <CardItem>
-                  <h1 className="text-3xl font-bold">Market News & Analysis</h1>
-                  <p className="text-muted-foreground mt-2">
-                    Stay informed with the latest market updates and insights
-                  </p>
-                </CardItem>
-              </CardBody>
-            </CardContainer>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* News Feed */}
+          <div className="lg:col-span-2">
+            <Tabs defaultValue="market" className="space-y-6">
+              <TabsList>
+                <TabsTrigger value="market">Market News</TabsTrigger>
+                <TabsTrigger value="portfolio">Portfolio News</TabsTrigger>
+              </TabsList>
+              <TabsContent value="market">
+                <MarketNewsFeed
+                  bookmarkedNews={bookmarkedNews}
+                />
+              </TabsContent>
+              <TabsContent value="portfolio">
+                <PortfolioNewsFeed
+                  portfolioSymbols={portfolioSymbols}
+                  bookmarkedNews={bookmarkedNews}
+                />
+              </TabsContent>
+            </Tabs>
           </div>
 
-          {/* Main Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* News Feed */}
-            <div className="lg:col-span-2">
-              <Tabs defaultValue="market" className="space-y-6">
-                <TabsList>
-                  <TabsTrigger value="market">Market News</TabsTrigger>
-                  <TabsTrigger value="portfolio">Portfolio News</TabsTrigger>
-                </TabsList>
-                <TabsContent value="market">
-                  <MarketNewsFeed
-                    bookmarkedNews={bookmarkedNews}
-                  />
-                </TabsContent>
-                <TabsContent value="portfolio">
-                  <PortfolioNewsFeed
-                    portfolioSymbols={portfolioSymbols}
-                    bookmarkedNews={bookmarkedNews}
-                  />
-                </TabsContent>
-              </Tabs>
-            </div>
-
-            {/* Analysis */}
-            <div className="lg:col-span-1">
-              <NewsAnalysis newsItems={[]} />
-            </div>
+          {/* Analysis */}
+          <div className="lg:col-span-1">
+            <NewsAnalysis newsItems={[]} />
           </div>
         </div>
       </div>

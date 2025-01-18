@@ -1,7 +1,6 @@
 'use client';
 
 import { CardContainer, CardBody, CardItem } from '@/components/ui/3d-card';
-import { SparklesCore } from '@/components/ui/sparkles';
 
 interface PortfolioCorrelationProps {
   assets: any[];
@@ -54,15 +53,6 @@ export function PortfolioCorrelation({ assets }: PortfolioCorrelationProps) {
 
   return (
     <div className="relative">
-      <SparklesCore
-        id="correlation-sparkles"
-        background="transparent"
-        minSize={0.4}
-        maxSize={1}
-        particleDensity={30}
-        className="absolute top-0 left-0 w-full h-full"
-        particleColor="hsl(var(--primary))"
-      />
       <div className="relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {correlations.map((correlation, index) => (
