@@ -1,7 +1,6 @@
 'use client';
 
 import { CardContainer, CardBody, CardItem } from '@/components/ui/3d-card';
-import { SparklesCore } from '@/components/ui/sparkles';
 import { InteractiveChart } from '@/components/ui/interactive-chart';
 
 interface AssetMetrics {
@@ -78,15 +77,6 @@ export function RiskAnalysis({ portfolio }: RiskAnalysisProps) {
 
   return (
     <div className="relative">
-      <SparklesCore
-        id="risk-sparkles"
-        background="transparent"
-        minSize={0.4}
-        maxSize={1}
-        particleDensity={30}
-        className="absolute top-0 left-0 w-full h-full"
-        particleColor="hsl(var(--primary))"
-      />
       <div className="relative z-10 space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <CardContainer>

@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { NewsItem } from '@/lib/services/news.service';
 import { InteractiveChart } from '@/components/ui/interactive-chart';
 import { CardContainer, CardBody, CardItem } from '@/components/ui/3d-card';
-import { SparklesCore } from '@/components/ui/sparkles';
 
 interface SentimentAnalysis {
   score: number;
@@ -91,16 +90,6 @@ export function NewsAnalysis({ newsItems }: NewsAnalysisProps) {
       <CardBody>
         <CardItem>
           <div className="relative">
-            <SparklesCore
-              id="sentiment-sparkles"
-              background="transparent"
-              minSize={0.2}
-              maxSize={0.8}
-              particleDensity={30}
-              className="absolute top-0 left-0 w-full h-full"
-              particleColor="hsl(var(--primary))"
-            />
-            
             <div className="relative z-10 space-y-6">
               <div>
                 <h2 className="text-xl font-semibold mb-4">Market Sentiment Analysis</h2>
