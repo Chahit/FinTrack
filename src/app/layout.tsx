@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuroraBackground } from '@/components/ui/aurora-background';
 import { Toaster } from '@/components/ui/toaster';
+import { UserInitializer } from '@/components/UserInitializer';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -36,6 +37,7 @@ export default function RootLayout({
               disableTransitionOnChange
             >
               <AuroraBackground className="min-h-screen">
+                <UserInitializer />
                 {children}
                 <Toaster />
               </AuroraBackground>
