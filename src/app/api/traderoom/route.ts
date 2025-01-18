@@ -60,8 +60,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(messages.slice(-50));
 }
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
