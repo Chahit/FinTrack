@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs';
 import { prisma } from '@/lib/prisma';
 
+// Add Edge Runtime configuration
+export const runtime = 'edge';
+
 export async function GET() {
   try {
     const { userId } = auth();
