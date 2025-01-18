@@ -2,8 +2,23 @@
 
 import { Card } from '@/components/ui/card';
 
+interface AssetMetrics {
+  gainLossPercentage: number;
+}
+
+interface Asset {
+  metrics: AssetMetrics;
+}
+
+interface PortfolioSummary {
+  totalGainLossPercentage: number;
+}
+
 interface PerformanceMetricsProps {
-  portfolio: any;
+  portfolio: {
+    summary: PortfolioSummary;
+    assets: Asset[];
+  } | null;
 }
 
 export function PerformanceMetrics({ portfolio }: PerformanceMetricsProps) {
@@ -14,12 +29,12 @@ export function PerformanceMetrics({ portfolio }: PerformanceMetricsProps) {
     if (!assets.length) return null;
 
     // Calculate returns for different periods
-    const dailyReturn = summary.totalGainLossPercentage || 0;
+    const dailyReturn = summary?.totalGainLossPercentage || 0;
     
     // Calculate volatility (standard deviation of returns)
-    const returns = assets.map(asset => asset.metrics.gainLossPercentage);
-    const avgReturn = returns.reduce((a, b) => a + b, 0) / returns.length;
-    const variance = returns.reduce((a, b) => a + Math.pow(b - avgReturn, 2), 0) / returns.length;
+    const returns = assets.map((asset: Asset) => asset.metrics.gainLossPercentage);
+    const avgReturn = returns.reduce((acc: number, curr: number) => acc + curr, 0) / returns.length;
+    const variance = returns.reduce((acc: number, curr: number) => acc + Math.pow(curr - avgReturn, 2), 0) / returns.length;
     const volatility = Math.sqrt(variance);
 
     // Calculate Sharpe Ratio (assuming risk-free rate of 2%)
@@ -30,7 +45,7 @@ export function PerformanceMetrics({ portfolio }: PerformanceMetricsProps) {
       dailyReturn,
       volatility,
       sharpeRatio,
-      totalReturn: summary.totalGainLossPercentage || 0,
+      totalReturn: summary?.totalGainLossPercentage || 0,
     };
   };
 
