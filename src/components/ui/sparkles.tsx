@@ -1,131 +1,103 @@
 "use client";
 
 import { useCallback } from 'react';
-import { type Container, type Engine } from '@tsparticles/engine';
-import Particles from '@tsparticles/react';
-import { loadSlim } from '@tsparticles/slim';
+import Particles from 'react-tsparticles';
+import { Engine, ISourceOptions } from 'tsparticles-engine';
+import { loadFull } from 'tsparticles';
 import { cn } from '@/lib/utils';
 
 interface SparklesProps {
-  id?: string;
-  className?: string;
+  id: string;
   background?: string;
   minSize?: number;
   maxSize?: number;
   speed?: number;
   particleDensity?: number;
+  className?: string;
   particleColor?: string;
-  particleGlow?: boolean;
-  hoverEffect?: boolean;
-  clickEffect?: boolean;
-  interactive?: boolean;
 }
 
 export function SparklesCore({
-  id = 'tsparticles',
-  className,
+  id,
   background = 'transparent',
   minSize = 0.6,
-  maxSize = 1,
-  speed = 1.5,
+  maxSize = 1.4,
+  speed = 1,
   particleDensity = 100,
-  particleColor = '#FFFFFF',
-  particleGlow = true,
-  hoverEffect = true,
-  clickEffect = true,
-  interactive = true,
+  className = '',
+  particleColor = '#fff',
 }: SparklesProps) {
-  const particlesInit = useCallback(async (engine: Engine) => {
-    await loadSlim(engine);
+  const customInit = useCallback(async (engine: Engine) => {
+    await loadFull(engine);
   }, []);
+
+  const options: ISourceOptions = {
+    particles: {
+      number: {
+        value: particleDensity,
+        density: {
+          enable: true
+        }
+      },
+      color: {
+        value: particleColor,
+      },
+      shape: {
+        type: "circle",
+      },
+      opacity: {
+        value: { min: 0.1, max: 0.5 },
+      },
+      size: {
+        value: { min: minSize, max: maxSize },
+      },
+      move: {
+        enable: true,
+        direction: "none",
+        random: true,
+        speed: speed,
+        outModes: {
+          default: "bounce"
+        }
+      }
+    },
+    interactivity: {
+      detectsOn: "window",
+      events: {
+        onHover: {
+          enable: true,
+          mode: "repulse"
+        },
+        onClick: {
+          enable: true,
+          mode: "push"
+        }
+      },
+      modes: {
+        repulse: {
+          distance: 100,
+          duration: 0.4
+        },
+        push: {
+          quantity: 4
+        }
+      }
+    },
+    background: {
+      color: {
+        value: background
+      }
+    },
+    fullScreen: false,
+    detectRetina: true
+  };
 
   return (
     <Particles
       id={id}
       className={cn('h-full w-full', className)}
-      init={particlesInit}
-      options={{
-        background: {
-          color: {
-            value: background,
-          },
-        },
-        fpsLimit: 60,
-        particles: {
-          bounce: {
-            enable: true,
-          },
-          color: {
-            value: particleColor,
-          },
-          links: {
-            color: particleColor,
-            distance: 150,
-            enable: true,
-            opacity: 0.5,
-            width: 1,
-          },
-          move: {
-            enable: true,
-            random: true,
-            speed: speed,
-            straight: false,
-          },
-          number: {
-            density: {
-              enable: true,
-              area: 800,
-            },
-            value: particleDensity,
-          },
-          opacity: {
-            value: { min: 0.1, max: 0.5 },
-          },
-          shape: {
-            type: 'circle',
-          },
-          size: {
-            value: { min: minSize, max: maxSize },
-          },
-          twinkle: {
-            lines: {
-              enable: particleGlow,
-              frequency: 0.05,
-              opacity: 0.5,
-            },
-            particles: {
-              enable: particleGlow,
-              frequency: 0.05,
-              opacity: 0.5,
-            },
-          },
-        },
-        interactivity: interactive
-          ? {
-              events: {
-                onClick: {
-                  enable: clickEffect,
-                  mode: 'push',
-                },
-                onHover: {
-                  enable: hoverEffect,
-                  mode: 'repulse',
-                },
-                resize: true,
-              },
-              modes: {
-                push: {
-                  quantity: 4,
-                },
-                repulse: {
-                  distance: 100,
-                  duration: 0.4,
-                },
-              },
-            }
-          : undefined,
-        detectRetina: true,
-      }}
+      options={options}
+      init={customInit}
     />
   );
 }
