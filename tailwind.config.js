@@ -10,6 +10,13 @@ module.exports = {
   darkMode: "class",
   theme: {
     extend: {
+      colors: {
+        'color-1': '#FF0080',
+        'color-2': '#7928CA',
+        'color-3': '#FF4D4D',
+        'color-4': '#0070F3',
+        'color-5': '#00DFD8',
+      },
       animation: {
         aurora: "aurora 60s linear infinite",
       },
