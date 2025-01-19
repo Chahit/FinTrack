@@ -1,20 +1,18 @@
 import { Button } from '@/components/ui/button';
-import { SignInButton, SignUpButton } from '@clerk/nextjs';
 import { ArrowRight, BarChart2, Shield, Zap, BookOpen, Users, LineChart } from 'lucide-react';
 import Link from 'next/link';
 import { Footer } from '@/components/layout/Footer';
-import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
+import { getCurrentUser } from '@/lib/auth';
 
 export default async function Home() {
-  const { userId } = await auth();
+  const user = await getCurrentUser();
 
-  if (userId) {
+  if (user) {
     return redirect("/dashboard");
   }
 
   const features = [
-
     {
       name: 'Real-time Market Data',
       description: 'Access live market data, price alerts, and comprehensive financial information.',
@@ -51,20 +49,20 @@ export default async function Home() {
     <div className="flex min-h-screen flex-col">
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-24 text-center">
-      <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
-        Your Financial Journey Starts Here
-      </h1>
-      <p className="mt-6 text-lg text-muted-foreground">
-        Track your investments, analyze markets, and make informed decisions with FinTrack
-      </p>
-      <div className="mt-8 flex items-center justify-center gap-4">
-        <SignUpButton mode="modal">
-        <Button size="lg">Get Started</Button>
-        </SignUpButton>
-        <SignInButton mode="modal">
-        <Button variant="outline" size="lg">Sign In</Button>
-        </SignInButton>
-      </div>
+        <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
+          Your Financial Journey Starts Here
+        </h1>
+        <p className="mt-6 text-lg text-muted-foreground">
+          Track your investments, analyze markets, and make informed decisions with FinTrack
+        </p>
+        <div className="mt-8 flex items-center justify-center gap-4">
+          <Link href="/sign-up">
+            <Button size="lg">Get Started</Button>
+          </Link>
+          <Link href="/sign-in">
+            <Button variant="outline" size="lg">Sign In</Button>
+          </Link>
+        </div>
       </section>
 
       {/* Features Section */}
@@ -95,9 +93,6 @@ export default async function Home() {
             );
           })}
         </div>
-
-
-
       </section>
 
       {/* Footer */}

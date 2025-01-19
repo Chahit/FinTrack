@@ -1,28 +1,28 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useAuth } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 
 export function UserInitializer() {
-  const { userId, isLoaded } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     const initializeUser = async () => {
-      if (userId) {
-        try {
-          await fetch('/api/auth/user', {
-            method: 'POST',
-          });
-        } catch (error) {
-          console.error('Error initializing user:', error);
+      try {
+        const response = await fetch('/api/auth/user', {
+          method: 'POST',
+        });
+        
+        if (!response.ok && response.status === 401) {
+          router.push('/sign-in');
         }
+      } catch (error) {
+        console.error('Error initializing user:', error);
       }
     };
 
-    if (isLoaded) {
-      initializeUser();
-    }
-  }, [userId, isLoaded]);
+    initializeUser();
+  }, [router]);
 
   return null;
 } 

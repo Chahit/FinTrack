@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
+import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { updateAssetPrices } from '@/lib/price-service';
 
@@ -40,13 +40,13 @@ interface PortfolioAsset {
 
 export async function GET() {
   try {
-    const { userId } = auth();
-    if (!userId) {
+    const user = await getCurrentUser();
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const portfolio = await prisma.portfolio.findUnique({
-      where: { userId },
+      where: { userId: user.id },
       include: {
         assets: true,
       },

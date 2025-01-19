@@ -4,6 +4,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SideNav } from '@/components/layout/SideNav';
 import { TopNav } from '@/components/layout/TopNav';
 import { FloatingChat } from '@/components/FloatingChat';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getSession } from '@/lib/auth';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,6 +22,19 @@ export default function AuthLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const session = await getSession();
+      if (!session) {
+        router.push('/login');
+      }
+    };
+
+    checkAuth();
+  }, [router]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <div className="flex h-screen bg-background">

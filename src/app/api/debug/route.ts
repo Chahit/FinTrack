@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
 import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/auth';
 
 // Use Node.js runtime for Prisma compatibility
 export const runtime = 'nodejs';
@@ -10,14 +10,14 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const { userId } = auth();
-    if (!userId) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
     // Check if user exists in our database
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: session.id },
       include: {
         portfolio: {
           include: {
@@ -28,24 +28,7 @@ export async function GET() {
     });
 
     if (!user) {
-      // Create user and portfolio if they don't exist
-      const newUser = await prisma.user.create({
-        data: {
-          id: userId,
-          email: 'user@example.com', // You should get this from Clerk
-          portfolio: {
-            create: {} // This will create an empty portfolio
-          }
-        },
-        include: {
-          portfolio: true
-        }
-      });
-
-      return NextResponse.json({
-        status: 'Created new user and portfolio',
-        user: newUser
-      });
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     return NextResponse.json({

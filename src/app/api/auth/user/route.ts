@@ -1,25 +1,23 @@
-import { auth, clerkClient } from "@clerk/nextjs";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function POST() {
   try {
-    const { userId } = auth();
-    if (!userId) {
+    const user = await getCurrentUser();
+    if (!user) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: { portfolio: true }
     });
 
-    if (!user) {
-      const clerkUser = await clerkClient.users.getUser(userId);
-      await prisma.user.create({
+    if (!dbUser?.portfolio) {
+      await prisma.user.update({
+        where: { id: user.id },
         data: {
-          id: userId,
-          email: clerkUser.emailAddresses[0]?.emailAddress || '',
           portfolio: {
             create: {}
           }
@@ -29,7 +27,7 @@ export async function POST() {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error creating user:', error);
+    console.error('Error creating user portfolio:', error);
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 } 

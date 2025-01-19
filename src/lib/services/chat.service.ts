@@ -1,177 +1,148 @@
 'use client';
 
-export interface ChatMessage {
-  id: string;
-  content: string;
-  username: string;
-  groupId?: string;
-  createdAt: Date;
-}
+import { prisma } from '@/lib/prisma';
+import type { ChatGroup as PrismaChatGroup, ChatGroupMember, Prisma } from '@prisma/client';
 
 export interface ChatGroup {
   id: string;
   name: string;
   inviteCode: string;
   createdBy: string;
-  createdAt: Date;
-  members: string[];
+  members: { userId: string; name: string }[];
 }
 
-interface PortfolioData {
-  totalValue: number;
-  allocation: {
-    stocks: number;
-    bonds: number;
-    cash: number;
-  };
-  performance: {
-    ytdReturn: number;
-    annualizedReturn: number;
-  };
-  assets: Array<{
-    symbol: string;
-    type: string;
-    value: number;
-    quantity: number;
-    averagePrice: number;
-    currentPrice: number;
-    return: number;
-  }>;
-}
+type GroupWithMembers = PrismaChatGroup & {
+  members: (ChatGroupMember & { name: string })[];
+};
 
 export class ChatService {
-  static async sendMessage(message: string, groupId?: string): Promise<ChatMessage> {
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          message,
-          groupId,
-        }),
-      });
+  static async createGroup(name: string, userId: string, userName: string): Promise<ChatGroup> {
+    // Generate a random invite code
+    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to send message');
+    const createData = {
+      name,
+      inviteCode,
+      createdBy: userId,
+      members: {
+        create: {
+          userId,
+          name: userName,
+          isAdmin: true
+        } as unknown as Prisma.ChatGroupMemberCreateWithoutGroupInput
       }
+    };
 
-      const data = await response.json();
-      return {
-        ...data,
-        createdAt: new Date(data.createdAt),
-      };
-    } catch (error) {
-      console.error('Chat error:', error);
-      throw error;
-    }
+    const group = await prisma.chatGroup.create({
+      data: createData,
+      include: {
+        members: true
+      }
+    }) as unknown as GroupWithMembers;
+
+    return {
+      id: group.id,
+      name: group.name,
+      inviteCode: group.inviteCode,
+      createdBy: group.createdBy,
+      members: group.members.map(member => ({
+        userId: member.userId,
+        name: member.name
+      }))
+    };
   }
 
-  static async getMessages(groupId?: string, lastMessageId?: string): Promise<ChatMessage[]> {
-    try {
-      const params = new URLSearchParams();
-      if (groupId) params.append('groupId', groupId);
-      if (lastMessageId) params.append('lastMessageId', lastMessageId);
+  static async joinGroup(inviteCode: string, userId: string, userName: string): Promise<ChatGroup> {
+    // First check if the group exists
+    const existingGroup = await prisma.chatGroup.findUnique({
+      where: { inviteCode },
+      include: { members: true }
+    }) as unknown as GroupWithMembers | null;
 
-      const response = await fetch(`/api/chat?${params.toString()}`);
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to fetch messages');
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      throw error;
+    if (!existingGroup) {
+      throw new Error('Group not found');
     }
+
+    // Check if user is already a member
+    const isAlreadyMember = existingGroup.members.some(member => member.userId === userId);
+    if (isAlreadyMember) {
+      throw new Error('User is already a member of this group');
+    }
+
+    // Add user to the group
+    const updateData = {
+      members: {
+        create: {
+          userId,
+          name: userName,
+          isAdmin: false
+        } as unknown as Prisma.ChatGroupMemberCreateWithoutGroupInput
+      }
+    };
+
+    const group = await prisma.chatGroup.update({
+      where: { inviteCode },
+      data: updateData,
+      include: {
+        members: true
+      }
+    }) as unknown as GroupWithMembers;
+
+    return {
+      id: group.id,
+      name: group.name,
+      inviteCode: group.inviteCode,
+      createdBy: group.createdBy,
+      members: group.members.map(member => ({
+        userId: member.userId,
+        name: member.name
+      }))
+    };
   }
 
-  static async createGroup(name: string): Promise<ChatGroup> {
-    try {
-      const response = await fetch('/api/chat/group', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name }),
-      });
+  static async deleteGroup(groupId: string, userId: string): Promise<void> {
+    // Check if the user is the creator of the group
+    const group = await prisma.chatGroup.findUnique({
+      where: { id: groupId }
+    });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to create group');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error creating group:', error);
-      throw error;
+    if (!group) {
+      throw new Error('Group not found');
     }
+
+    if (group.createdBy !== userId) {
+      throw new Error('Only the group creator can delete the group');
+    }
+
+    // Delete the group and all related data (members will be automatically deleted due to cascade)
+    await prisma.chatGroup.delete({
+      where: { id: groupId }
+    });
   }
 
-  static async joinGroup(inviteCode: string): Promise<ChatGroup> {
-    try {
-      const response = await fetch('/api/chat/group/join', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ inviteCode }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to join group');
+  static async getGroups(userId: string): Promise<ChatGroup[]> {
+    const groups = await prisma.chatGroup.findMany({
+      where: {
+        members: {
+          some: {
+            userId
+          }
+        }
+      },
+      include: {
+        members: true
       }
+    }) as unknown as GroupWithMembers[];
 
-      return await response.json();
-    } catch (error) {
-      console.error('Error joining group:', error);
-      throw error;
-    }
-  }
-
-  static async getGroups(): Promise<ChatGroup[]> {
-    try {
-      const response = await fetch('/api/chat/group');
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to fetch groups');
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching groups:', error);
-      throw error;
-    }
-  }
-
-  static async getPortfolioData(): Promise<PortfolioData | null> {
-    try {
-      const response = await fetch('/api/portfolio/analysis');
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to fetch portfolio data');
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching portfolio data:', error);
-      throw error;
-    }
-  }
-
-  static async deleteGroup(groupId: string): Promise<void> {
-    try {
-      const response = await fetch(`/api/chat/group/${groupId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to delete group');
-      }
-    } catch (error) {
-      console.error('Error deleting group:', error);
-      throw error;
-    }
+    return groups.map(group => ({
+      id: group.id,
+      name: group.name,
+      inviteCode: group.inviteCode,
+      createdBy: group.createdBy,
+      members: group.members.map(member => ({
+        userId: member.userId,
+        name: member.name
+      }))
+    }));
   }
 } 
