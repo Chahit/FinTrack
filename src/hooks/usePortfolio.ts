@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
-import { useUser } from '@clerk/nextjs';
 
 interface Asset {
   symbol: string;
@@ -31,12 +32,12 @@ async function fetchPortfolio(userId: string): Promise<Portfolio> {
 }
 
 export function usePortfolio() {
-  const { user } = useUser();
+  const { data: session } = useSession();
 
   return useQuery({
-    queryKey: ['portfolio', user?.id],
-    queryFn: () => fetchPortfolio(user?.id || ''),
-    enabled: !!user?.id,
+    queryKey: ['portfolio', session?.user?.id],
+    queryFn: () => fetchPortfolio(session?.user?.id || ''),
+    enabled: !!session?.user?.id,
     refetchInterval: 60000, // Refetch every minute
     staleTime: 30000, // Consider data stale after 30 seconds
   });

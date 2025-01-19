@@ -102,12 +102,14 @@ export function PriceAlerts({ assetId, symbol, currentPrice = 0 }: PriceAlertsPr
     }
   };
 
-  const toggleAlert = async (alertId: string, isActive: boolean) => {
+  const toggleAlert = async (alertId: string, checked: boolean) => {
     try {
       const response = await fetch(`/api/portfolio/alerts/${alertId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ active: isActive }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ active: checked }),
       });
 
       if (!response.ok) {
@@ -116,10 +118,11 @@ export function PriceAlerts({ assetId, symbol, currentPrice = 0 }: PriceAlertsPr
 
       await refetch();
       toast({
-        title: isActive ? 'Alert activated' : 'Alert deactivated',
-        description: `Price alert for ${symbol} has been ${isActive ? 'activated' : 'deactivated'}.`,
+        title: 'Alert updated',
+        description: `Alert has been ${checked ? 'activated' : 'deactivated'}.`,
       });
     } catch (error) {
+      console.error('Error toggling alert:', error);
       toast({
         title: 'Error',
         description: 'Failed to update alert. Please try again.',
@@ -232,7 +235,7 @@ export function PriceAlerts({ assetId, symbol, currentPrice = 0 }: PriceAlertsPr
             <div className="flex items-center gap-2">
               <Switch
                 checked={alert.active}
-                onCheckedChange={(checked) => toggleAlert(alert.id, checked)}
+                onCheckedChange={(checked: boolean) => toggleAlert(alert.id, checked)}
               />
               <Button
                 variant="ghost"

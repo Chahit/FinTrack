@@ -1,7 +1,19 @@
 'use client';
 
 import { prisma } from '@/lib/prisma';
-import type { ChatGroup as PrismaChatGroup, ChatGroupMember, Prisma } from '@prisma/client';
+import type { ChatGroup as PrismaChatGroup, ChatGroupMember, ChatMessage as PrismaChatMessage, Prisma, User } from '@prisma/client';
+
+export interface ChatMessage {
+  id: string;
+  content: string;
+  createdAt: Date;
+  userId: string;
+  groupId: string;
+  user: {
+    id: string;
+    name: string | null;
+  };
+}
 
 export interface ChatGroup {
   id: string;
@@ -12,115 +24,15 @@ export interface ChatGroup {
 }
 
 type GroupWithMembers = PrismaChatGroup & {
-  members: (ChatGroupMember & { name: string })[];
+  members: (ChatGroupMember & { user: User })[];
+};
+
+type MessageWithUser = PrismaChatMessage & {
+  user: User;
 };
 
 export class ChatService {
-  static async createGroup(name: string, userId: string, userName: string): Promise<ChatGroup> {
-    // Generate a random invite code
-    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-
-    const createData = {
-      name,
-      inviteCode,
-      createdBy: userId,
-      members: {
-        create: {
-          userId,
-          name: userName,
-          isAdmin: true
-        } as unknown as Prisma.ChatGroupMemberCreateWithoutGroupInput
-      }
-    };
-
-    const group = await prisma.chatGroup.create({
-      data: createData,
-      include: {
-        members: true
-      }
-    }) as unknown as GroupWithMembers;
-
-    return {
-      id: group.id,
-      name: group.name,
-      inviteCode: group.inviteCode,
-      createdBy: group.createdBy,
-      members: group.members.map(member => ({
-        userId: member.userId,
-        name: member.name
-      }))
-    };
-  }
-
-  static async joinGroup(inviteCode: string, userId: string, userName: string): Promise<ChatGroup> {
-    // First check if the group exists
-    const existingGroup = await prisma.chatGroup.findUnique({
-      where: { inviteCode },
-      include: { members: true }
-    }) as unknown as GroupWithMembers | null;
-
-    if (!existingGroup) {
-      throw new Error('Group not found');
-    }
-
-    // Check if user is already a member
-    const isAlreadyMember = existingGroup.members.some(member => member.userId === userId);
-    if (isAlreadyMember) {
-      throw new Error('User is already a member of this group');
-    }
-
-    // Add user to the group
-    const updateData = {
-      members: {
-        create: {
-          userId,
-          name: userName,
-          isAdmin: false
-        } as unknown as Prisma.ChatGroupMemberCreateWithoutGroupInput
-      }
-    };
-
-    const group = await prisma.chatGroup.update({
-      where: { inviteCode },
-      data: updateData,
-      include: {
-        members: true
-      }
-    }) as unknown as GroupWithMembers;
-
-    return {
-      id: group.id,
-      name: group.name,
-      inviteCode: group.inviteCode,
-      createdBy: group.createdBy,
-      members: group.members.map(member => ({
-        userId: member.userId,
-        name: member.name
-      }))
-    };
-  }
-
-  static async deleteGroup(groupId: string, userId: string): Promise<void> {
-    // Check if the user is the creator of the group
-    const group = await prisma.chatGroup.findUnique({
-      where: { id: groupId }
-    });
-
-    if (!group) {
-      throw new Error('Group not found');
-    }
-
-    if (group.createdBy !== userId) {
-      throw new Error('Only the group creator can delete the group');
-    }
-
-    // Delete the group and all related data (members will be automatically deleted due to cascade)
-    await prisma.chatGroup.delete({
-      where: { id: groupId }
-    });
-  }
-
-  static async getGroups(userId: string): Promise<ChatGroup[]> {
+  async getUserGroups(userId: string): Promise<ChatGroup[]> {
     const groups = await prisma.chatGroup.findMany({
       where: {
         members: {
@@ -130,9 +42,13 @@ export class ChatService {
         }
       },
       include: {
-        members: true
+        members: {
+          include: {
+            user: true
+          }
+        }
       }
-    }) as unknown as GroupWithMembers[];
+    }) as unknown as (PrismaChatGroup & { members: (ChatGroupMember & { user: User })[] })[];
 
     return groups.map(group => ({
       id: group.id,
@@ -141,8 +57,192 @@ export class ChatService {
       createdBy: group.createdBy,
       members: group.members.map(member => ({
         userId: member.userId,
-        name: member.name
+        name: member.user.name || 'Unknown'
       }))
     }));
   }
-} 
+
+  async getGroupMessages(groupId: string): Promise<ChatMessage[]> {
+    const messages = await prisma.chatMessage.findMany({
+      where: { groupId },
+      include: {
+        user: true
+      },
+      orderBy: {
+        createdAt: 'asc'
+      }
+    }) as unknown as MessageWithUser[];
+
+    return messages.map(msg => ({
+      id: msg.id,
+      content: msg.content,
+      createdAt: msg.createdAt,
+      userId: msg.userId,
+      groupId: msg.groupId,
+      user: {
+        id: msg.user.id,
+        name: msg.user.name
+      }
+    }));
+  }
+
+  async getNewMessages(groupId: string, lastMessageId: string): Promise<ChatMessage[]> {
+    const lastMessage = await prisma.chatMessage.findUnique({
+      where: { id: lastMessageId }
+    });
+
+    if (!lastMessage) {
+      return [];
+    }
+
+    const messages = await prisma.chatMessage.findMany({
+      where: {
+        groupId,
+        createdAt: {
+          gt: lastMessage.createdAt
+        }
+      },
+      include: {
+        user: true
+      },
+      orderBy: {
+        createdAt: 'asc'
+      }
+    }) as unknown as MessageWithUser[];
+
+    return messages.map(msg => ({
+      id: msg.id,
+      content: msg.content,
+      createdAt: msg.createdAt,
+      userId: msg.userId,
+      groupId: msg.groupId,
+      user: {
+        id: msg.user.id,
+        name: msg.user.name
+      }
+    }));
+  }
+
+  async sendMessage(data: { content: string; groupId: string; userId: string }): Promise<ChatMessage> {
+    const message = await prisma.chatMessage.create({
+      data: {
+        content: data.content,
+        groupId: data.groupId,
+        userId: data.userId
+      },
+      include: {
+        user: true
+      }
+    }) as unknown as MessageWithUser;
+
+    return {
+      id: message.id,
+      content: message.content,
+      createdAt: message.createdAt,
+      userId: message.userId,
+      groupId: message.groupId,
+      user: {
+        id: message.user.id,
+        name: message.user.name
+      }
+    };
+  }
+
+  async createGroup(data: { name: string; createdBy: string }): Promise<ChatGroup> {
+    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    const group = await prisma.chatGroup.create({
+      data: {
+        name: data.name,
+        inviteCode,
+        createdBy: data.createdBy,
+        members: {
+          create: {
+            userId: data.createdBy,
+            isAdmin: true
+          }
+        }
+      },
+      include: {
+        members: {
+          include: {
+            user: true
+          }
+        }
+      }
+    }) as unknown as GroupWithMembers;
+
+    return {
+      id: group.id,
+      name: group.name,
+      inviteCode: group.inviteCode,
+      createdBy: group.createdBy,
+      members: group.members.map(member => ({
+        userId: member.userId,
+        name: member.user.name || 'Unknown'
+      }))
+    };
+  }
+
+  async joinGroup(inviteCode: string, userId: string): Promise<ChatGroup> {
+    const group = await prisma.chatGroup.findUnique({
+      where: { inviteCode },
+      include: {
+        members: {
+          include: {
+            user: true
+          }
+        }
+      }
+    }) as unknown as GroupWithMembers | null;
+
+    if (!group) {
+      throw new Error('Group not found');
+    }
+
+    if (group.members.some(member => member.userId === userId)) {
+      throw new Error('Already a member of this group');
+    }
+
+    const updatedGroup = await prisma.chatGroup.update({
+      where: { id: group.id },
+      data: {
+        members: {
+          create: {
+            userId,
+            isAdmin: false
+          }
+        }
+      },
+      include: {
+        members: {
+          include: {
+            user: true
+          }
+        }
+      }
+    }) as unknown as GroupWithMembers;
+
+    return {
+      id: updatedGroup.id,
+      name: updatedGroup.name,
+      inviteCode: updatedGroup.inviteCode,
+      createdBy: updatedGroup.createdBy,
+      members: updatedGroup.members.map(member => ({
+        userId: member.userId,
+        name: member.user.name || 'Unknown'
+      }))
+    };
+  }
+
+  async leaveGroup(groupId: string, userId: string): Promise<void> {
+    await prisma.chatGroupMember.delete({
+      where: {
+        groupId_userId: {
+          groupId,
+          userId
+        }
+      }
+    });
+  }
+}

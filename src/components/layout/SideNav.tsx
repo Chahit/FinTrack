@@ -13,18 +13,27 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { useClerk } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
+import { useToast } from '@/components/ui/use-toast';
 
 export function SideNav() {
   const [open, setOpen] = useState(false);
-  const { signOut } = useClerk();
   const router = useRouter();
+  const { toast } = useToast();
 
-  const handleSignOut = () => {
-    signOut(() => router.push('/'));
+  const handleSignOut = async () => {
+    try {
+      await signOut({ redirect: false });
+      router.push('/sign-in');
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: 'Failed to sign out. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const links = [
@@ -91,25 +100,29 @@ const Logo = () => {
       href="/dashboard"
       className="font-normal flex space-x-2 items-center text-sm text-black py-1 relative z-20"
     >
-      <div className="h-5 w-6 bg-black dark:bg-white rounded-br-lg rounded-tr-sm rounded-tl-lg rounded-bl-sm flex-shrink-0" />
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="font-medium text-black dark:text-white whitespace-pre"
+      <motion.div
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.2 }}
+        className="font-semibold text-xl"
       >
         FinTrack
-      </motion.span>
+      </motion.div>
     </Link>
   );
 };
 
 const LogoIcon = () => {
   return (
-    <Link
-      href="/dashboard"
-      className="font-normal flex space-x-2 items-center text-sm text-black py-1 relative z-20"
-    >
-      <div className="h-5 w-6 bg-black dark:bg-white rounded-br-lg rounded-tr-sm rounded-tl-lg rounded-bl-sm flex-shrink-0" />
+    <Link href="/dashboard" className="flex items-center justify-center">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.2 }}
+        className="font-semibold text-xl"
+      >
+        F
+      </motion.div>
     </Link>
   );
 };

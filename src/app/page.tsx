@@ -56,11 +56,10 @@ export default async function Home() {
           Track your investments, analyze markets, and make informed decisions with FinTrack
         </p>
         <div className="mt-8 flex items-center justify-center gap-4">
-          <Link href="/sign-up">
-            <Button size="lg">Get Started</Button>
-          </Link>
-          <Link href="/sign-in">
-            <Button variant="outline" size="lg">Sign In</Button>
+          <Link href="/login">
+            <Button size="lg" className="gap-2">
+              Get Started <ArrowRight className="h-4 w-4" />
+            </Button>
           </Link>
         </div>
       </section>

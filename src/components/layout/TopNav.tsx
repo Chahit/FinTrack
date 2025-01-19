@@ -3,7 +3,7 @@
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationBell } from '@/components/NotificationBell';
 import { Button } from '@/components/ui/button';
-import { removeAuthCookie } from '@/lib/auth';
+import { signOut } from '@/lib/client/auth';
 import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
@@ -12,13 +12,23 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { User } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
 export function TopNav() {
   const router = useRouter();
+  const { toast } = useToast();
 
-  const handleSignOut = () => {
-    removeAuthCookie();
-    router.push('/login');
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      router.push('/sign-in');
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to sign out',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -45,4 +55,4 @@ export function TopNav() {
   );
 }
 
-export default TopNav; 
+export default TopNav;

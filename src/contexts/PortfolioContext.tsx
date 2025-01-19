@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useSession } from 'next-auth/react';
 
 interface Portfolio {
   totalValue: number;
@@ -92,15 +92,15 @@ function portfolioReducer(state: PortfolioState, action: PortfolioAction): Portf
 
 export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(portfolioReducer, initialState);
-  const { user, isLoaded } = useUser();
+  const { data: session } = useSession();
 
   useEffect(() => {
     async function fetchPortfolioData() {
-      if (!isLoaded || !user) return;
+      if (!session?.user) return;
 
       dispatch({ type: 'FETCH_START' });
       try {
-        const response = await fetch(`/api/portfolio/${user.id}`);
+        const response = await fetch(`/api/portfolio/${session.user.id}`);
         if (!response.ok) {
           throw new Error('Failed to fetch portfolio data');
         }
@@ -139,7 +139,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     return () => {
       ws.close();
     };
-  }, [user, isLoaded]);
+  }, [session]);
 
   return (
     <PortfolioContext.Provider value={{ state, dispatch }}>

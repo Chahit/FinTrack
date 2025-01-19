@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 interface PriceData {
   symbol: string;
@@ -51,31 +52,38 @@ async function fetchStockPrice(symbol: string): Promise<PriceData | null> {
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = getAuth(req);
-    if (!userId) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const { assets } = await req.json();
     if (!assets || !Array.isArray(assets)) {
-      return NextResponse.json({ message: "Invalid assets array" }, { status: 400 });
+      return NextResponse.json(
+        { message: "Invalid request body" },
+        { status: 400 }
+      );
     }
 
-    const pricePromises = assets.map(async (asset: { symbol: string; type: string }) => {
-      if (asset.type === 'crypto') {
-        return fetchCryptoPrice(asset.symbol);
-      } else if (asset.type === 'stock') {
-        return fetchStockPrice(asset.symbol);
-      }
-      return null;
-    });
+    const prices = await Promise.all(
+      assets.map(async (asset) => {
+        if (asset.type === 'crypto') {
+          return fetchCryptoPrice(asset.symbol);
+        } else if (asset.type === 'stock') {
+          return fetchStockPrice(asset.symbol);
+        }
+        return null;
+      })
+    );
 
-    const prices = await Promise.all(pricePromises);
     const validPrices = prices.filter((price): price is PriceData => price !== null);
 
     return NextResponse.json({ prices: validPrices });
   } catch (error) {
-    console.error('Error fetching prices:', error);
-    return NextResponse.json({ message: "Error fetching prices" }, { status: 500 });
+    console.error('Error in fetch-prices:', error);
+    return NextResponse.json(
+      { message: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

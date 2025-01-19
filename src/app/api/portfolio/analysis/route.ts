@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
 import { marketData } from '@/lib/market-data';
 import type { Asset, PortfolioAnalysis } from '../types';
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth();
+    const session = await getServerSession(authOptions);
+if (!session?.user) {
+  return new NextResponse('Unauthorized', { status: 401 });
+}
+const userId = session.user.id;
     if (!userId) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
@@ -112,7 +117,11 @@ function calculateSharpeRatio(returns: number[]): number {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth();
+    const session = await getServerSession(authOptions);
+if (!session?.user) {
+  return new NextResponse('Unauthorized', { status: 401 });
+}
+const userId = session.user.id;
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

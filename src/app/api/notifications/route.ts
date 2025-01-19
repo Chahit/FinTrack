@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
+import { getServerSession } from "next-auth/next";
 import { prisma } from '@/lib/prisma';
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 export async function GET(req: NextRequest) {
-  try {
-    const { userId } = auth();
-    if (!userId) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+  const session = await getServerSession(authOptions);
 
+  if (!session?.user) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
+  try {
     const notifications = await prisma.notification.findMany({
-      where: { 
-        userId,
+      where: {
+        userId: session.user.id
       },
       orderBy: {
         createdAt: 'desc'
@@ -22,17 +24,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(notifications);
   } catch (error) {
     console.error('Notifications fetch error:', error);
-    return NextResponse.json({ message: "Error fetching notifications" }, { status: 500 });
+    return new NextResponse("Internal Server Error", { status: 500 });
   }
 }
 
 export async function PUT(req: NextRequest) {
-  try {
-    const { userId } = auth();
-    if (!userId) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+  const session = await getServerSession(authOptions);
 
+  if (!session?.user) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
+  try {
     const { notificationId } = await req.json();
     if (!notificationId) {
       return NextResponse.json({ message: "Notification ID is required" }, { status: 400 });
@@ -41,7 +44,7 @@ export async function PUT(req: NextRequest) {
     const notification = await prisma.notification.findFirst({
       where: {
         id: notificationId,
-        userId
+        userId: session.user.id
       }
     });
 
@@ -62,12 +65,13 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  try {
-    const { userId } = auth();
-    if (!userId) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+  const session = await getServerSession(authOptions);
 
+  if (!session?.user) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
+  try {
     const { searchParams } = new URL(req.url);
     const alertId = searchParams.get('alertId');
 
@@ -80,7 +84,7 @@ export async function DELETE(req: NextRequest) {
         id: alertId,
         asset: {
           portfolio: {
-            userId
+            userId: session.user.id
           }
         }
       }

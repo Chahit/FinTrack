@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from '@/lib/prisma';
 import { updateAssetPrices } from '@/lib/price-service';
 
@@ -38,13 +39,15 @@ interface PortfolioAsset {
   priceChange24h: number;
 }
 
-export async function GET() {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
 
+  try {
+    const user = session.user;
+    
     const portfolio = await prisma.portfolio.findUnique({
       where: { userId: user.id },
       include: {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 interface NewsItem {
   title: string;
@@ -15,7 +16,11 @@ const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = auth();
+    const session = await getServerSession(authOptions);
+if (!session?.user) {
+  return new NextResponse('Unauthorized', { status: 401 });
+}
+const userId = session.user.id;
     if (!userId) {
       return new NextResponse('Unauthorized', { status: 401 });
     }

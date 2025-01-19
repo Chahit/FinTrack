@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { config } from '@/lib/config';
 import { prisma } from '@/lib/prisma';
 
@@ -8,7 +9,11 @@ const COINGECKO_NEWS_API = 'https://api.coingecko.com/api/v3/news';
 
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = auth();
+    const session = await getServerSession(authOptions);
+if (!session?.user) {
+  return new NextResponse('Unauthorized', { status: 401 });
+}
+const userId = session.user.id;
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -63,7 +68,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = auth();
+    const session = await getServerSession(authOptions);
+if (!session?.user) {
+  return new NextResponse('Unauthorized', { status: 401 });
+}
+const userId = session.user.id;
     if (!userId) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }

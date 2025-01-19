@@ -12,7 +12,14 @@ import {
 import { Menu, MoveRight, X } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
+import { useSession, signOut } from "next-auth/react";
+import Image from "next/image";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { RainbowButton } from "@/components/ui/rainbow-button";
 
@@ -70,6 +77,8 @@ export function Header1() {
     ];
 
     const [isOpen, setOpen] = useState(false);
+    const { data: session } = useSession();
+
     return (
         <header className="w-full z-50 fixed top-0 left-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
             <div className="container relative mx-auto min-h-16 flex gap-4 flex-row lg:grid lg:grid-cols-3 items-center">
@@ -130,7 +139,25 @@ export function Header1() {
                 </div>
                 <div className="flex justify-end w-full gap-4 items-center">
                     <ThemeToggle />
-                    <UserButton afterSignOutUrl="/" />
+                    {session?.user && (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                                    <Image
+                                        src={session.user.image || "/placeholder-avatar.png"}
+                                        alt={session.user.name || "User avatar"}
+                                        fill
+                                        className="rounded-full"
+                                    />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => signOut()}>
+                                    Sign out
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
                 </div>
                 <div className="flex w-12 shrink lg:hidden items-end justify-end">
                     <Button variant="ghost" onClick={() => setOpen(!isOpen)}>

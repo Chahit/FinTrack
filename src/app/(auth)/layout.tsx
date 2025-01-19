@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SideNav } from '@/components/layout/SideNav';
@@ -6,7 +6,7 @@ import { TopNav } from '@/components/layout/TopNav';
 import { FloatingChat } from '@/components/FloatingChat';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSession } from '@/lib/auth';
+import { useToast } from '@/components/ui/use-toast';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,17 +23,29 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     const checkAuth = async () => {
-      const session = await getSession();
-      if (!session) {
-        router.push('/login');
+      try {
+        const response = await fetch('/api/auth/session');
+        const data = await response.json();
+
+        if (!response.ok || !data.session) {
+          router.push('/sign-in');
+        }
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to verify authentication',
+          variant: 'destructive',
+        });
+        router.push('/sign-in');
       }
     };
 
     checkAuth();
-  }, [router]);
+  }, [router, toast]);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -49,4 +61,4 @@ export default function AuthLayout({
       </div>
     </QueryClientProvider>
   );
-} 
+}

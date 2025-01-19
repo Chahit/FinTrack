@@ -1,52 +1,47 @@
-'use client';
+"use client"; // Add this directive at the top
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
-import { useToast } from '@/components/ui/use-toast';
-import { setAuthCookie } from '@/lib/auth';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function SignInPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/sign-in', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/auth/sign-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to sign in');
+        const data = await response.json();
+        throw new Error(data.error || "Failed to sign in");
       }
 
-      // Set the auth token in a cookie
-      setAuthCookie(data.token);
-
       toast({
-        title: 'Success',
-        description: 'Signed in successfully!',
+        title: "Success",
+        description: "Signed in successfully!",
       });
 
-      router.push('/dashboard');
+      router.push("/dashboard");
     } catch (error: any) {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to sign in',
-        variant: 'destructive',
+        title: "Error",
+        description: error.message || "Failed to sign in",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -90,13 +85,13 @@ export default function SignInPage() {
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? "Signing in..." : "Sign In"}
           </Button>
         </form>
 
         <div className="text-center text-sm">
           <p className="text-muted-foreground">
-            Don't have an account?{' '}
+            Don't have an account?{" "}
             <Link href="/sign-up" className="text-primary hover:underline">
               Sign up
             </Link>
@@ -105,4 +100,4 @@ export default function SignInPage() {
       </Card>
     </div>
   );
-} 
+}

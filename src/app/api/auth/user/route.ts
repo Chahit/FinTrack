@@ -1,12 +1,13 @@
-import { getCurrentUser } from "@/lib/auth";
+import { validateServerSession } from "@/lib/server/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function POST() {
   try {
-    const user = await getCurrentUser();
+    const user = await validateServerSession();
+
     if (!user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
     const dbUser = await prisma.user.findUnique({
@@ -28,6 +29,9 @@ export async function POST() {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error creating user portfolio:', error);
-    return new NextResponse("Internal Server Error", { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create user portfolio" },
+      { status: 500 }
+    );
   }
-} 
+}

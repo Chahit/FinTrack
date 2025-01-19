@@ -1,19 +1,29 @@
 import { NextResponse } from 'next/server';
-import { createUser, createSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { hash } from 'bcryptjs';
+import { z } from 'zod';
 
-export const runtime = 'nodejs';
+// Input validation schema
+const signUpSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+});
 
 export async function POST(request: Request) {
   try {
-    const { email, password, name } = await request.json();
-
-    if (!email || !password || !name) {
+    const body = await request.json();
+    
+    // Validate input
+    const result = signUpSchema.safeParse(body);
+    if (!result.success) {
       return NextResponse.json(
-        { error: 'Email, password, and name are required' },
+        { error: result.error.errors[0].message },
         { status: 400 }
       );
     }
+
+    const { email, password, name } = result.data;
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -27,11 +37,17 @@ export async function POST(request: Request) {
       );
     }
 
+    // Hash password
+    const hashedPassword = await hash(password, 12);
+
     // Create new user
-    const user = await createUser(email, password, name);
-    
-    // Create session
-    const token = await createSession(user.id);
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name,
+        password: hashedPassword,
+      },
+    });
 
     return NextResponse.json({
       user: {
@@ -39,13 +55,12 @@ export async function POST(request: Request) {
         email: user.email,
         name: user.name,
       },
-      token,
     });
   } catch (error) {
     console.error('Sign up error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Something went wrong' },
       { status: 500 }
     );
   }
-} 
+}

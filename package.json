@@ -11,6 +11,7 @@
     "patch-swc": "next build"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.7.4",
     "@google/generative-ai": "^0.21.0",
     "@hookform/resolvers": "^3.10.0",
     "@neondatabase/serverless": "^0.10.4",
@@ -55,6 +56,7 @@
     "d3": "^7.9.0",
     "date-fns": "^4.1.0",
     "dicons": "^1.1.7",
+    "drizzle-orm": "^0.38.4",
     "framer-motion": "^11.18.0",
     "gsap": "^3.12.5",
     "ioredis": "^5.4.2",
@@ -63,8 +65,10 @@
     "lucide-react": "^0.303.0",
     "mongodb": "^6.3.0",
     "next": "14.0.4",
+    "next-auth": "^4.24.11",
     "next-themes": "^0.2.1",
     "openai": "^4.24.1",
+    "prisma": "^6.2.1",
     "react": "^18",
     "react-dom": "^18",
     "react-fast-marquee": "^1.6.2",
@@ -93,7 +97,6 @@
     "autoprefixer": "^10.0.1",
     "del": "^7.1.0",
     "postcss": "^8",
-    "prisma": "^6.2.1",
     "tailwindcss": "^3.3.0",
     "typescript": "^5"
   }

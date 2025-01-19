@@ -1,10 +1,15 @@
-import { auth } from '@clerk/nextjs/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
 export async function GET(request: Request) {
-  const { userId } = await auth();
+  const session = await getServerSession(authOptions);
+if (!session?.user) {
+  return new NextResponse('Unauthorized', { status: 401 });
+}
+const userId = session.user.id;
   if (!userId) {
     return new NextResponse('Unauthorized', { status: 401 });
   }
@@ -39,7 +44,11 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const { userId } = await auth();
+  const session = await getServerSession(authOptions);
+if (!session?.user) {
+  return new NextResponse('Unauthorized', { status: 401 });
+}
+const userId = session.user.id;
   if (!userId) {
     return new NextResponse('Unauthorized', { status: 401 });
   }
@@ -81,7 +90,11 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const { userId } = await auth();
+  const session = await getServerSession(authOptions);
+if (!session?.user) {
+  return new NextResponse('Unauthorized', { status: 401 });
+}
+const userId = session.user.id;
   if (!userId) {
     return new NextResponse('Unauthorized', { status: 401 });
   }

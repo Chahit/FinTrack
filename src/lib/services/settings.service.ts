@@ -1,4 +1,6 @@
-import { auth } from '@clerk/nextjs';
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { prisma } from '@/lib/prisma';
 
 export interface UserSettings {
   theme: 'light' | 'dark';
@@ -18,15 +20,19 @@ export interface UserSettings {
 
 export class SettingsService {
   static async getUserSettings(): Promise<UserSettings> {
-    try {
-      const response = await fetch('/api/settings');
-      if (!response.ok) {
-        throw new Error('Failed to fetch settings');
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      throw new Error('Unauthorized');
+    }
+
+    const settings = await prisma.userSettings.findUnique({
+      where: {
+        userId: session.user.id
       }
-      return response.json();
-    } catch (error) {
-      console.error('Error fetching user settings:', error);
-      // Return default settings if fetch fails
+    });
+
+    if (!settings) {
+      // Return default settings if no settings found
       return {
         theme: 'light',
         currency: 'USD',
@@ -43,64 +49,63 @@ export class SettingsService {
         },
       };
     }
+
+    return settings;
   }
 
   static async updateSettings(settings: Partial<UserSettings>): Promise<UserSettings> {
-    try {
-      const response = await fetch('/api/settings', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(settings),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update settings');
-      }
-
-      return response.json();
-    } catch (error) {
-      console.error('Error updating settings:', error);
-      throw error;
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      throw new Error('Unauthorized');
     }
+
+    const updatedSettings = await prisma.userSettings.upsert({
+      where: {
+        userId: session.user.id
+      },
+      update: settings,
+      create: {
+        ...settings,
+        userId: session.user.id
+      }
+    });
+
+    return updatedSettings;
   }
 
   static async updateNotifications(notifications: Partial<UserSettings['notifications']>): Promise<void> {
-    try {
-      const response = await fetch('/api/settings/notifications', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ notifications }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update notification settings');
-      }
-    } catch (error) {
-      console.error('Error updating notifications:', error);
-      throw error;
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      throw new Error('Unauthorized');
     }
+
+    const updatedSettings = await prisma.userSettings.upsert({
+      where: {
+        userId: session.user.id
+      },
+      update: { notifications },
+      create: {
+        notifications,
+        userId: session.user.id
+      }
+    });
   }
 
   static async updatePortfolioSettings(portfolioSettings: Partial<UserSettings['portfolio']>): Promise<void> {
-    try {
-      const response = await fetch('/api/settings/portfolio', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ portfolio: portfolioSettings }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update portfolio settings');
-      }
-    } catch (error) {
-      console.error('Error updating portfolio settings:', error);
-      throw error;
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      throw new Error('Unauthorized');
     }
+
+    const updatedSettings = await prisma.userSettings.upsert({
+      where: {
+        userId: session.user.id
+      },
+      update: { portfolio: portfolioSettings },
+      create: {
+        portfolio: portfolioSettings,
+        userId: session.user.id
+      }
+    });
   }
-} 
+}

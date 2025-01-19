@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { validateServerSession } from '@/lib/server/auth';
 
 // Use Node.js runtime for Prisma compatibility
 export const runtime = 'nodejs';
@@ -10,14 +10,15 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const user = await validateServerSession();
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Check if user exists in our database
-    const user = await prisma.user.findUnique({
-      where: { id: session.id },
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: {
         portfolio: {
           include: {
@@ -27,15 +28,15 @@ export async function GET() {
       }
     });
 
-    if (!user) {
+    if (!dbUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     return NextResponse.json({
       status: 'Found existing user',
-      user,
-      hasPortfolio: !!user.portfolio,
-      assetCount: user.portfolio?.assets.length ?? 0
+      user: dbUser,
+      hasPortfolio: !!dbUser.portfolio,
+      assetCount: dbUser.portfolio?.assets.length ?? 0
     });
 
   } catch (error) {
